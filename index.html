@@ -1,0 +1,929 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Rumah dijual di Medan dan Deli Serdang lengkap dengan peta lokasi. FREE AJB & Balik Nama. Chat WA 0896-9175-7802.">
+<meta property="og:title" content="Yudhi Property · Rumah Dijual Medan & Deli Serdang">
+<meta property="og:description" content="Cek lokasi di peta, FREE AJB & Balik Nama. WA 0896-9175-7802">
+<meta property="og:image" content="logo.png">
+<link rel="icon" href="logo.png">
+<style>html,body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Yudhi Property · Rumah Dijual Medan & Deli Serdang</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: lembar peta kadaster. Peta kecamatan (geser/zoom) di atas, kartu spesifikasi muncul di atas peta saat titik diklik, daftar rumah di bawah. */
+:root {
+  --bg: #eef2f0;
+  --surface: #ffffff;
+  --ink: #17262a;
+  --muted: #5d6f72;
+  --line: #d3dcda;
+  --land: #e3eae6;
+  --land-city: #d6e3ea;
+  --border: #9fb2b3;
+  --grid: #c9d4d2;
+  --accent: #c4410c;
+  --accent-soft: #fbe5da;
+  --accent-ink: #ffffff;
+  --font-display: "Bricolage Grotesque", "Trebuchet MS", sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1719; --surface: #172225; --ink: #e5eeee; --muted: #93a8aa; --line: #2a3a3d;
+    --land: #1b282b; --land-city: #1f3139; --border: #3f5659; --grid: #23353a;
+    --accent: #ff7f45; --accent-soft: #3a2116; --accent-ink: #1b0d05; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1719; --surface: #172225; --ink: #e5eeee; --muted: #93a8aa; --line: #2a3a3d;
+  --land: #1b282b; --land-city: #1f3139; --border: #3f5659; --grid: #23353a;
+  --accent: #ff7f45; --accent-soft: #3a2116; --accent-ink: #1b0d05; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 18px; }
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 10px 20px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin: 0 0 4px; }
+h1 { font-family: var(--font-display); font-size: clamp(28px, 5.5vw, 44px); line-height: 1; margin: 0; letter-spacing: -0.02em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 8px 0 0; max-width: 58ch; }
+.stats { display: flex; gap: 18px; font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+.stats b { display: block; font-family: var(--font-display); font-size: 26px; color: var(--ink); line-height: 1; font-variant-numeric: tabular-nums; }
+
+/* Peta */
+.map { position: relative; height: clamp(380px, 64vh, 660px); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+.map > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; }
+.map > svg.drag { cursor: grabbing; }
+.kec { fill: var(--land); stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.kec.city { fill: var(--land-city); }
+.kec.has { fill: var(--accent-soft); }
+.grat { stroke: var(--grid); stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 3 4; fill: none; }
+.klabel { font-family: var(--font-mono); font-size: 10.5px; fill: var(--muted); text-anchor: middle; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; pointer-events: none; letter-spacing: .04em; text-transform: uppercase; }
+.tick { font-family: var(--font-mono); font-size: 10px; fill: var(--muted); }
+.rd { fill: none; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.rd.case { stroke: var(--border); }
+.rd.c0 { stroke: color-mix(in srgb, var(--accent) 60%, var(--surface)); }
+.rd.c1, .rd.c2 { stroke: color-mix(in srgb, #f2c94c 55%, var(--surface)); }
+.rd.c3 { stroke: var(--surface); }
+.rlabel { font-family: var(--font-body); font-size: 11px; font-weight: 600; fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 3.5px; stroke-linejoin: round; pointer-events: none; }
+.poi circle { stroke: var(--surface); stroke-width: 1.5; }
+.poi text.ic { font: 700 8.5px var(--font-mono); fill: #fff; text-anchor: middle; pointer-events: none; }
+.poi text.nm { font: 500 10.5px var(--font-body); fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
+.pin { cursor: pointer; outline: none; }
+.pin .tag { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.pin .tagtext { font-family: var(--font-body); font-weight: 600; font-size: 12px; fill: var(--ink); }
+.pin .stem { fill: var(--accent); }
+.pin .core { fill: var(--surface); }
+.pin.on .tag { fill: var(--accent); }
+.pin.on .tagtext { fill: var(--accent-ink); }
+.pin:focus-visible .tag { stroke: var(--ink); stroke-width: 3; }
+.pin .halo { fill: var(--accent); opacity: .18; }
+.ctrl { position: absolute; right: 12px; top: 12px; display: grid; gap: 6px; z-index: 3; }
+.ctrl button { width: 38px; height: 38px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 600 18px/1 var(--font-body); cursor: pointer; display: grid; place-items: center; }
+.ctrl button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ctrl button svg { width: 18px; height: 18px; }
+.scale { position: absolute; left: 12px; bottom: 12px; z-index: 2; font-family: var(--font-mono); font-size: 11px; color: var(--muted); background: color-mix(in srgb, var(--surface) 85%, transparent); padding: 4px 8px 6px; border-radius: 6px; pointer-events: none; }
+.scale i { display: block; height: 6px; border: 1.5px solid var(--ink); border-top: 0; margin-top: 2px; }
+.north { position: absolute; left: 12px; top: 12px; z-index: 2; width: 34px; text-align: center; font: 600 11px var(--font-mono); color: var(--ink); pointer-events: none; }
+.north svg { display: block; margin: 0 auto; }
+.hintbar { position: absolute; right: 12px; bottom: 12px; z-index: 2; font-size: 12px; color: var(--muted); background: color-mix(in srgb, var(--surface) 85%, transparent); padding: 4px 8px; border-radius: 6px; pointer-events: none; }
+
+/* Kartu spesifikasi di atas peta */
+.pop { position: absolute; z-index: 4; left: 12px; top: 12px; bottom: 12px; width: min(360px, calc(100% - 24px)); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 32px rgb(0 0 0 / .18); overflow: auto; overscroll-behavior: contain; touch-action: pan-y; }
+@media (max-width: 560px) { .pop { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 78%; } }
+.pop .x { position: absolute; right: 8px; top: 8px; z-index: 1; width: 34px; height: 34px; border-radius: 50%; border: 0; background: rgb(0 0 0 / .55); color: #fff; font: 600 18px/1 var(--font-body); cursor: pointer; }
+.pop .x:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hero { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--land); }
+.nophoto { display: grid; place-items: center; aspect-ratio: 16 / 9; background: repeating-linear-gradient(135deg, var(--land) 0 10px, var(--bg) 10px 20px); color: var(--muted); font-family: var(--font-mono); font-size: 13px; }
+.thumbs { display: flex; gap: 6px; padding: 8px 12px 0; overflow-x: auto; }
+.thumb { all: unset; box-sizing: border-box; flex: 0 0 64px; cursor: pointer; border: 2px solid transparent; border-radius: 6px; overflow: hidden; line-height: 0; }
+.thumb img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+.thumb[aria-pressed="true"] { border-color: var(--accent); }
+.thumb:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pbody { padding: 14px 16px 18px; display: grid; gap: 12px; }
+.pname { font-family: var(--font-display); font-size: 22px; line-height: 1.15; margin: 0; }
+.place { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+.price { display: flex; align-items: baseline; gap: 8px; }
+.price b { font-family: var(--font-display); font-size: 24px; }
+.price span { color: var(--muted); font-size: 13px; }
+.price.ask b { font-size: 18px; color: var(--accent); }
+.specs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin: 0; }
+.specs div { background: var(--surface); padding: 8px 10px; }
+.specs dt { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+.specs dd { margin: 0; font-family: var(--font-mono); font-size: 15px; font-variant-numeric: tabular-nums; }
+.specs dd.na { color: var(--muted); font-family: var(--font-body); font-size: 13px; }
+.coord { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: var(--accent); color: var(--accent-ink); text-decoration: none; padding: 10px 16px; border-radius: 8px; border: 0; cursor: pointer; font: 600 14px var(--font-body); }
+.btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+.btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
+.post { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
+.post h3 { font-family: var(--font-display); font-size: 16px; margin: 0; }
+.post label { font-size: 12px; color: var(--muted); display: grid; gap: 4px; }
+.post input, .post textarea { font: 14px/1.45 var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; }
+.post textarea { min-height: 170px; resize: vertical; }
+.post input:focus-visible, .post textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.btn.fb { background: #1877f2; color: #fff; }
+.btn.wa { background: #1fa855; color: #fff; }
+.agent { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; background: #1fa855; color: #fff; padding: 8px 14px; border-radius: 999px; font: 600 14px var(--font-body); }
+.agent:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.agent span { font-family: var(--font-mono); font-weight: 500; }
+.btn.th { background: var(--ink); color: var(--surface); }
+.post .msg { font-size: 12px; color: var(--accent); min-height: 1em; margin: 0; }
+.note { font-size: 13px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 10px; margin: 0; }
+
+/* Daftar */
+.listhead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 8px 0 12px; }
+.listhead h2 { font-family: var(--font-display); font-size: 24px; margin: 0; }
+.listhead span { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.list { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
+.item { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: grid; grid-template-rows: auto 1fr; }
+.item.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.item .img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; display: block; background: var(--land); }
+.item .nophoto { aspect-ratio: 16 / 10; }
+.ibody { padding: 12px 14px 14px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.ibody h3 { font-family: var(--font-display); font-size: 18px; margin: 0; line-height: 1.2; }
+.ibody .place { margin: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); }
+.chip.perk { background: #f5c542; border-color: transparent; color: #17262a; font-weight: 600; }
+.chip.acc { background: var(--accent-soft); border-color: transparent; color: var(--ink); }
+.ibody .btn { justify-self: start; padding: 8px 14px; margin-top: 4px; }
+@media (max-width: 480px) { .topnav .agent span { display: none; } }
+.topnav { white-space: nowrap; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.brand { display: inline-flex; align-items: center; gap: 10px; font: 700 20px var(--font-display); color: var(--ink); text-decoration: none; }
+.brand img { border-radius: 10px; }
+.why h2, .titip h2 { font-family: var(--font-display); font-size: 24px; margin: 0 0 12px; }
+.whygrid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.whygrid div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.whygrid div:first-child { border-color: #f5c542; box-shadow: inset 0 0 0 1px #f5c542; }
+.whygrid p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+.titip { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; background: #17262a; color: #fff; border-radius: 12px; padding: 20px 22px; }
+.titip p { margin: 0; color: #c9d6d6; max-width: 56ch; }
+footer { color: var(--muted); font-size: 12px; font-family: var(--font-mono); }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <nav class="topnav"><a class="brand" href="#"><img src="logo.png" alt="" width="40" height="40">Yudhi Property</a><a class="agent" href="https://wa.me/6289691757802" target="_blank" rel="noopener">Chat WA <span>0896-9175-7802</span></a></nav>
+  <header>
+    <div>
+      <p class="eyebrow">Medan dan Deli Serdang</p>
+      <h1>Peta Rumah Dijual</h1>
+      <p class="sub">Geser dan perbesar peta, lalu ketuk label harga untuk melihat foto dan spesifikasi rumah.</p>
+    </div>
+    <div style="display:grid;gap:10px;justify-items:end">
+      <div class="stats">
+        <div><b id="nHouse">0</b>rumah</div>
+        <div><b id="nKec">0</b>kecamatan</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="map" id="map">
+    <svg id="svg" role="group" aria-label="Peta batas kecamatan dan titik rumah dijual">
+      <g id="world"></g>
+      <g id="roadsW"></g>
+      <g id="labels"></g>
+      <g id="rlabels"></g>
+      <g id="pois"></g>
+      <g id="ticks"></g>
+      <g id="pins"></g>
+    </svg>
+    <div class="north" aria-hidden="true">
+      <svg viewBox="0 0 20 26" width="20" height="26"><path d="M10 1 L17 24 L10 19 L3 24 Z" fill="var(--ink)"/></svg>U
+    </div>
+    <div class="ctrl">
+      <button type="button" id="zin" aria-label="Perbesar">+</button>
+      <button type="button" id="zout" aria-label="Perkecil">&minus;</button>
+      <button type="button" id="zfit" aria-label="Tampilkan semua rumah"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4"/></svg></button>
+    </div>
+    <div class="scale"><span id="scaleTxt">1 km</span><i id="scaleBar"></i></div>
+    <div class="hintbar" id="hint">Ketuk label untuk detail</div>
+    <article class="pop" id="pop" hidden aria-live="polite"></article>
+  </div>
+
+  <section>
+    <div class="listhead"><h2>Daftar rumah dijual</h2><span id="listCount"></span></div>
+    <div class="list" id="list"></div>
+  </section>
+
+  <section class="why">
+    <h2>Kenapa lewat Yudhi Property?</h2>
+    <div class="whygrid">
+      <div><b>FREE AJB &amp; Balik Nama</b><p>Pembeli tidak perlu pusing urusan akta jual beli dan balik nama sertifikat. Semua kami bantu.</p></div>
+      <div><b>Lokasi jelas di peta</b><p>Setiap rumah punya titik lokasi, jalan besar terdekat, dan tempat penting di sekitarnya.</p></div>
+      <div><b>Survei kapan saja</b><p>Atur jadwal lihat rumah langsung lewat WhatsApp, kami temani ke lokasi.</p></div>
+    </div>
+  </section>
+  <section class="titip">
+    <div><h2>Punya rumah atau tanah mau dijual?</h2><p>Titip jual ke Yudhi Property. Kami foto, pasang di peta, dan iklankan ke calon pembeli.</p></div>
+    <a class="btn wa" href="https://wa.me/6289691757802?text=Halo%20Yudhi%20Property%2C%20saya%20mau%20titip%20jual%20rumah." target="_blank" rel="noopener">Titip jual lewat WhatsApp</a>
+  </section>
+  <footer>Batas kecamatan: Kemendagri 2020. Jalan dan tempat: © OpenStreetMap contributors. Titik dari sharelok penjual. Alamat lengkap dan harga: Yudhi Property, WA 0896-9175-7802.</footer>
+</div>
+
+<script>
+var HOUSES = [
+  { id: 1, name: "Rumah Tanjung Gusta", area: "Tanjung Gusta, Medan", lat: 3.6152808, lon: 98.610141,
+    maps: "https://maps.app.goo.gl/nSZEM4FFiYhYMwt67",
+    price: 264, lt: null, lb: null, kt: null, km: null, sert: "SHM",
+    photos: ["foto/1.jpg", "foto/2.jpg", "foto/3.jpg", "foto/4.jpg"],
+    captions: ["Tampak depan dengan pagar besi", "Teras dan pintu masuk", "Ruang dalam", "Kamar"] },
+  { id: 2, name: "Rumah Klambir Lima", area: "Jl. Klambir Lima, Hamparan Perak", lat: 3.6571819, lon: 98.5922379,
+    maps: "https://maps.app.goo.gl/cu2UQrAxvZEttUaY9",
+    price: null, lt: null, lb: null, kt: null, km: null, sert: null,
+    photos: [], captions: [] }
+];
+
+var NS = "http://www.w3.org/2000/svg";
+var LAT0 = 3.62, COS = Math.cos(LAT0 * Math.PI / 180), S = 1000;
+function px(lon) { return (lon - 98.6) * S * COS; }
+function py(lat) { return (LAT0 - lat) * S; }
+
+var svg = document.getElementById("svg"), world = document.getElementById("world");
+var gLabels = document.getElementById("labels"), gTicks = document.getElementById("ticks"), gPins = document.getElementById("pins");
+var mapEl = document.getElementById("map"), pop = document.getElementById("pop");
+var view = { k: 1, tx: 0, ty: 0 }, W = 0, H = 0;
+var KEC = [], selected = null, shot = {};
+
+function node(tag, attrs, parent) {
+  var n = document.createElementNS(NS, tag);
+  for (var a in attrs) n.setAttribute(a, attrs[a]);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function el(tag, attrs, text) {
+  var n = document.createElement(tag);
+  for (var a in attrs) n.setAttribute(a, attrs[a]);
+  if (text != null) n.textContent = text;
+  return n;
+}
+function find(id) { for (var i = 0; i < HOUSES.length; i++) if (HOUSES[i].id === id) return HOUSES[i]; }
+function inRing(x, y, r) {
+  var c = false;
+  for (var i = 0, j = r.length - 1; i < r.length; j = i++) {
+    var xi = r[i][0], yi = r[i][1], xj = r[j][0], yj = r[j][1];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c;
+  }
+  return c;
+}
+
+function buildWorld() {
+  world.textContent = "";
+  var used = {};
+  HOUSES.forEach(function (h) {
+    KEC.forEach(function (k, i) {
+      if (k.rings.some(function (r) { return inRing(h.lon, h.lat, r); })) { h.kec = k.kec; h.kab = k.kab; used[i] = true; }
+    });
+  });
+  KEC.forEach(function (k, i) {
+    var d = k.rings.map(function (r) {
+      return "M" + r.map(function (p) { return px(p[0]).toFixed(1) + " " + py(p[1]).toFixed(1); }).join("L") + "Z";
+    }).join("");
+    node("path", { d: d, "class": "kec" + (k.kab === "Kota Medan" ? " city" : "") + (used[i] ? " has" : "") }, world);
+    var big = k.rings.reduce(function (a, b) { return b.length > a.length ? b : a; });
+    var sx = 0, sy = 0, minx = Infinity, maxx = -Infinity;
+    big.forEach(function (p) { sx += p[0]; sy += p[1]; minx = Math.min(minx, p[0]); maxx = Math.max(maxx, p[0]); });
+    k.cx = px(sx / big.length); k.cy = py(sy / big.length); k.w = (maxx - minx) * S * COS;
+  });
+  for (var lo = 98.45; lo <= 98.8001; lo += 0.05) node("line", { "class": "grat", x1: px(lo), x2: px(lo), y1: py(3.85), y2: py(3.4) }, world);
+  for (var la = 3.45; la <= 3.8501; la += 0.05) node("line", { "class": "grat", x1: px(98.4), x2: px(98.85), y1: py(la), y2: py(la) }, world);
+  document.getElementById("nKec").textContent = Object.keys(used).length;
+}
+
+function sx(x) { return x * view.k + view.tx; }
+function sy(y) { return y * view.k + view.ty; }
+function apply() {
+  var tf = "translate(" + view.tx + " " + view.ty + ") scale(" + view.k + ")";
+  world.setAttribute("transform", tf);
+  document.getElementById("roadsW").setAttribute("transform", tf);
+  drawLabels(); drawRoadLabels(); drawPois(); drawTicks(); drawPins(); drawScale();
+}
+function drawLabels() {
+  gLabels.textContent = "";
+  KEC.forEach(function (k) {
+    if (!k.kec || k.w * view.k < 70) return;
+    var x = sx(k.cx), y = sy(k.cy);
+    if (x < -50 || x > W + 50 || y < -20 || y > H + 20) return;
+    node("text", { "class": "klabel", x: x, y: y }, gLabels).textContent = k.kec;
+  });
+}
+function drawTicks() {
+  gTicks.textContent = "";
+  for (var lo = 98.45; lo <= 98.8001; lo += 0.05) {
+    var x = sx(px(lo)); if (x < 60 || x > W - 70) continue;
+    node("text", { "class": "tick", x: x + 3, y: H - 40 }, gTicks).textContent = lo.toFixed(2) + "°BT";
+  }
+  for (var la = 3.45; la <= 3.8501; la += 0.05) {
+    var y = sy(py(la)); if (y < 150 || y > H - 60) continue;
+    node("text", { "class": "tick", x: W - 62, y: y - 4 }, gTicks).textContent = la.toFixed(2) + "°LU";
+  }
+}
+function label(h) { return h.price ? (h.price >= 1000 ? "Rp " + (h.price / 1000).toLocaleString("id-ID") + " M" : "Rp " + h.price + " jt") : "Dijual"; }
+function drawPins() {
+  gPins.textContent = "";
+  var order = HOUSES.slice().sort(function (a, b) { return ((a.id === selected) - (b.id === selected)) || (b.lat - a.lat); });
+  order.forEach(function (h) {
+    var x = sx(px(h.lon)), y = sy(py(h.lat));
+    var g = node("g", { "class": "pin" + (h.id === selected ? " on" : ""), tabindex: "0", role: "button", "aria-label": h.name + ", " + label(h) }, gPins);
+    if (h.id === selected) node("circle", { "class": "halo", cx: x, cy: y, r: 16 }, g);
+    var txt = label(h), w = txt.length * 7.2 + 18;
+    node("rect", { "class": "tag", x: x - w / 2, y: y - 40, width: w, height: 26, rx: 13 }, g);
+    node("path", { "class": "stem", d: "M" + (x - 6) + " " + (y - 15) + "L" + x + " " + (y - 4) + "L" + (x + 6) + " " + (y - 15) + "Z" }, g);
+    node("circle", { "class": "stem", cx: x, cy: y, r: 5 }, g);
+    node("circle", { "class": "core", cx: x, cy: y, r: 2 }, g);
+    node("text", { "class": "tagtext", x: x, y: y - 23, "text-anchor": "middle" }, g).textContent = txt;
+    g.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
+    g.addEventListener("click", function () { select(h.id, false); });
+    g.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(h.id, false); } });
+  });
+}
+function drawScale() {
+  var kmPerPx = 111.32 / (S * view.k);
+  var steps = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20], km = steps[0];
+  steps.forEach(function (s) { if (s / kmPerPx <= 120) km = s; });
+  document.getElementById("scaleBar").style.width = (km / kmPerPx) + "px";
+  document.getElementById("scaleTxt").textContent = km < 1 ? Math.round(km * 1000) + " m" : km + " km";
+}
+
+function fitHouses() {
+  if (!W) return;
+  var xs = HOUSES.map(function (h) { return px(h.lon); }), ys = HOUSES.map(function (h) { return py(h.lat); });
+  var x0 = Math.min.apply(0, xs), x1 = Math.max.apply(0, xs), y0 = Math.min.apply(0, ys), y1 = Math.max.apply(0, ys);
+  var half = Math.max(x1 - x0, y1 - y0, 60) / 2 + 45;
+  var k = Math.max(0.15, Math.min(W, H) / (half * 2));
+  view.k = k; view.tx = W / 2 - (x0 + x1) / 2 * k; view.ty = H / 2 - (y0 + y1) / 2 * k + 15;
+  apply();
+}
+function zoomAt(f, x, y) {
+  var nk = Math.max(0.15, Math.min(view.k * f, 80)); f = nk / view.k;
+  view.tx = x - (x - view.tx) * f; view.ty = y - (y - view.ty) * f; view.k = nk; apply();
+}
+function resize() {
+  var r = mapEl.getBoundingClientRect(), ow = W, oh = H;
+  W = r.width; H = r.height;
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  if (ow) { view.tx += (W - ow) / 2; view.ty += (H - oh) / 2; apply(); }
+}
+
+var pts = {};
+svg.addEventListener("pointerdown", function (e) {
+  svg.setPointerCapture(e.pointerId); pts[e.pointerId] = { x: e.clientX, y: e.clientY }; svg.classList.add("drag");
+});
+svg.addEventListener("pointermove", function (e) {
+  if (!pts[e.pointerId]) return;
+  var ids = Object.keys(pts), prev = pts[e.pointerId];
+  if (ids.length === 1) {
+    view.tx += e.clientX - prev.x; view.ty += e.clientY - prev.y;
+    pts[e.pointerId] = { x: e.clientX, y: e.clientY }; apply();
+  } else if (ids.length === 2) {
+    var o = pts[ids[0] == e.pointerId ? ids[1] : ids[0]];
+    var d0 = Math.hypot(prev.x - o.x, prev.y - o.y);
+    pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+    var d1 = Math.hypot(e.clientX - o.x, e.clientY - o.y), r = mapEl.getBoundingClientRect();
+    if (d0 > 0) zoomAt(d1 / d0, (e.clientX + o.x) / 2 - r.left, (e.clientY + o.y) / 2 - r.top);
+  }
+});
+function up(e) { delete pts[e.pointerId]; if (!Object.keys(pts).length) svg.classList.remove("drag"); }
+svg.addEventListener("pointerup", up); svg.addEventListener("pointercancel", up);
+svg.addEventListener("wheel", function (e) {
+  e.preventDefault(); var r = mapEl.getBoundingClientRect();
+  zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
+}, { passive: false });
+document.getElementById("zin").onclick = function () { zoomAt(1.6, W / 2, H / 2); };
+document.getElementById("zout").onclick = function () { zoomAt(1 / 1.6, W / 2, H / 2); };
+document.getElementById("zfit").onclick = fitHouses;
+
+function specs(h) {
+  return [
+    ["Luas tanah", h.lt ? h.lt + " m²" : null], ["Luas bangunan", h.lb ? h.lb + " m²" : null],
+    ["Kamar tidur", h.kt ? String(h.kt) : null], ["Kamar mandi", h.km ? String(h.km) : null],
+    ["Sertifikat", h.sert], ["Kecamatan", h.kec || null]
+  ];
+}
+var AGENT = "Yudhi Property", AGENT_WA = "089691757802", PERK = "FREE AJB & Balik Nama";
+function perkBadge(x, X, Y, size) {
+  x.save(); x.font = "700 " + size + "px 'Bricolage Grotesque', sans-serif"; x.textBaseline = "alphabetic"; x.textAlign = "left";
+  var t = "✓ " + PERK.toUpperCase(), w = x.measureText(t).width + size * 1.2, hh = size * 1.7;
+  x.fillStyle = "#f5c542"; x.fillRect(X, Y, w, hh); x.fillStyle = "#17262a"; x.fillText(t, X + size * 0.6, Y + hh * 0.7); x.restore(); return w;
+}
+function waIntl(n) { n = String(n).replace(/\D/g, ""); return n.charAt(0) === "0" ? "62" + n.slice(1) : n; }
+function waNice(n) { n = String(n).replace(/\D/g, ""); return n.replace(/^(\d{4})(\d{4})(\d+)$/, "$1-$2-$3"); }
+function waLink(h, n) { return "https://wa.me/" + waIntl(n || AGENT_WA) + "?text=" + encodeURIComponent("Halo " + AGENT + ", saya tertarik dengan " + h.name + " (" + h.area + ")."); }
+function priceText(h) { return h.price ? "Rp " + h.price.toLocaleString("id-ID") + " juta" : "Harga: hubungi " + AGENT; }
+function photoBlock(h, parent, big) {
+  var cur = shot[h.id] || 0;
+  if (!h.photos.length) { parent.appendChild(el("div", { "class": "nophoto" }, "Foto menyusul")); return; }
+  parent.appendChild(el("img", { "class": big ? "hero" : "img", src: h.photos[cur], alt: (h.captions[cur] || "Foto") + ", " + h.name }));
+}
+function renderPop() {
+  pop.textContent = "";
+  if (selected === null) { pop.hidden = true; return; }
+  var h = find(selected), cur = shot[h.id] || 0;
+  pop.hidden = false;
+  var x = el("button", { "class": "x", type: "button", "aria-label": "Tutup" }, "×");
+  x.onclick = function () { select(null); };
+  pop.appendChild(x);
+  photoBlock(h, pop, true);
+  if (h.photos.length > 1) {
+    var th = el("div", { "class": "thumbs" });
+    h.photos.forEach(function (src, i) {
+      var b = el("button", { "class": "thumb", type: "button", "aria-pressed": String(i === cur), "aria-label": h.captions[i] });
+      b.appendChild(el("img", { src: src, alt: "" }));
+      b.onclick = function () { shot[h.id] = i; renderPop(); };
+      th.appendChild(b);
+    });
+    pop.appendChild(th);
+  }
+  var body = el("div", { "class": "pbody" }), head = el("div", {});
+  head.appendChild(el("h2", { "class": "pname" }, h.name));
+  head.appendChild(el("p", { "class": "place" }, h.area + (h.kab ? " · " + h.kab : "")));
+  body.appendChild(head);
+  var pr = el("div", { "class": "price" + (h.price ? "" : " ask") });
+  pr.appendChild(el("b", {}, priceText(h)));
+  if (h.price) pr.appendChild(el("span", {}, "nego"));
+  body.appendChild(pr);
+  body.appendChild(el("div", { "class": "chips" }, null)).appendChild(el("span", { "class": "chip perk" }, "✓ " + PERK));
+  var dl = el("dl", { "class": "specs" });
+  specs(h).forEach(function (s) {
+    var d = el("div", {}); d.appendChild(el("dt", {}, s[0]));
+    d.appendChild(el("dd", s[1] ? {} : { "class": "na" }, s[1] || "Menyusul")); dl.appendChild(d);
+  });
+  body.appendChild(dl);
+  body.appendChild(el("div", { "class": "coord" }, h.lat.toFixed(5) + "° LU, " + h.lon.toFixed(5) + "° BT"));
+  var row = el("div", { "class": "row" });
+  row.appendChild(el("a", { "class": "btn wa", href: waLink(h), target: "_blank", rel: "noopener" }, "Chat " + AGENT + " (WA " + waNice(AGENT_WA) + ")"));
+  if (h.maps) row.appendChild(el("a", { "class": "btn ghost", href: h.maps, target: "_blank", rel: "noopener" }, "Rute di Google Maps"));
+  body.appendChild(row);
+  if (window.claude && window.claude.use) body.appendChild(postBlock(h));
+  body.appendChild(el("p", { "class": "note" }, "Titik dari sharelok penjual. Alamat lengkap dan harga diberikan oleh " + AGENT + "."));
+  pop.appendChild(body);
+  pop.scrollTop = 0;
+}
+function getWa() { try { return localStorage.getItem("waAgenYP") || AGENT_WA; } catch (e) { return AGENT_WA; } }
+function setWa(v) { try { localStorage.setItem("waAgenYP", v); } catch (e) {} }
+function caption(h, wa) {
+  var L = [];
+  L.push("DIJUAL " + h.name.toUpperCase());
+  L.push("📍 " + h.area + (h.kec ? ", Kec. " + h.kec : ""));
+  L.push("💰 " + (h.price ? "Rp " + h.price.toLocaleString("id-ID") + " juta (nego)" : "Harga: chat untuk info"));
+  L.push("✅ " + PERK);
+  var s = [];
+  if (h.lt) s.push("LT " + h.lt + " m²");
+  if (h.lb) s.push("LB " + h.lb + " m²");
+  if (h.kt) s.push(h.kt + " KT");
+  if (h.km) s.push(h.km + " KM");
+  if (h.sert) s.push(h.sert);
+  if (s.length) L.push("🏠 " + s.join(" • "));
+  L.push("");
+  L.push("Lokasi di peta: " + h.maps);
+  L.push("Minat / survei lokasi, hubungi " + AGENT + " WA " + waNice(wa || AGENT_WA));
+  L.push("Chat langsung: https://wa.me/" + waIntl(wa || AGENT_WA));
+  L.push("");
+  L.push("#rumahdijual #rumahmedan #jualrumahmedan" + (h.kec ? " #" + h.kec.replace(/\s+/g, "").toLowerCase() : ""));
+  return L.join("\n");
+}
+function postBlock(h) {
+  var box = el("div", { "class": "post" });
+  box.appendChild(el("h3", {}, "Posting rumah ini"));
+  var lw = el("label", { "for": "wa" }, "No. WA agen (disimpan di perangkat ini)");
+  var wa = el("input", { id: "wa", type: "tel", inputmode: "tel", placeholder: "08xxxxxxxxxx" });
+  wa.value = getWa();
+  lw.appendChild(wa); box.appendChild(lw);
+  var lt = el("label", { "for": "cap" }, "Teks posting (boleh diedit)");
+  var ta = el("textarea", { id: "cap" });
+  ta.value = caption(h, wa.value);
+  lt.appendChild(ta); box.appendChild(lt);
+  wa.addEventListener("input", function () { setWa(wa.value.trim()); ta.value = caption(h, wa.value.trim()); });
+  var msg = el("p", { "class": "msg", "aria-live": "polite" });
+  function copy(then) {
+    var done = function () { msg.textContent = "Teks tersalin. Tempel di kolom posting, lalu tambahkan fotonya."; };
+    try {
+      navigator.clipboard.writeText(ta.value).then(done, function () { ta.select(); msg.textContent = "Teks sudah diblok. Tekan Salin dulu, lalu tempel."; });
+    } catch (e) { ta.select(); msg.textContent = "Teks sudah diblok. Tekan Salin dulu, lalu tempel."; }
+  }
+  var row = el("div", { "class": "row" });
+  var bc = el("button", { "class": "btn ghost", type: "button" }, "Salin teks");
+  bc.onclick = function () { copy(); };
+  var fb = el("a", { "class": "btn fb", href: "https://www.facebook.com/", target: "_blank", rel: "noopener" }, "Posting ke Facebook");
+  fb.addEventListener("click", function () { copy(); });
+  var mp = el("a", { "class": "btn ghost", href: "https://www.facebook.com/marketplace/create/rental", target: "_blank", rel: "noopener" }, "Marketplace");
+  mp.addEventListener("click", function () { copy(); });
+  var th = el("a", { "class": "btn th", href: "#", target: "_blank", rel: "noopener" }, "Posting ke Threads");
+  th.addEventListener("click", function () { th.href = "https://www.threads.net/intent/post?text=" + encodeURIComponent(ta.value.slice(0, 500)); copy(); });
+  th.addEventListener("pointerdown", function () { th.href = "https://www.threads.net/intent/post?text=" + encodeURIComponent(ta.value.slice(0, 500)); });
+  row.appendChild(bc); row.appendChild(fb); row.appendChild(th); row.appendChild(mp);
+  var row2 = el("div", { "class": "row" });
+  var bp = el("button", { "class": "btn", type: "button" }, "Simpan gambar posting");
+  var ba = el("button", { "class": "btn ghost", type: "button" }, "Simpan semua foto");
+  var bq = el("button", { "class": "btn fb", type: "button" }, "Kirim ke antrian Halaman FB");
+  bq.onclick = function () {
+    bq.disabled = true; msg.textContent = "Menyiapkan slide (peta dulu, lalu foto)…";
+    queuePost(h, wa.value.trim(), ta.value, function (t) { msg.textContent = t; }).then(function (n) {
+      msg.textContent = "Masuk antrian: " + n + " slide. Make akan memposting ke Halaman Yudhi Property.";
+    }, function (e) { msg.textContent = e; }).then(function () { bq.disabled = false; });
+  };
+  row2.appendChild(bq);
+  row2.appendChild(bp);
+  if (h.photos.length) row2.appendChild(ba);
+  bp.onclick = function () {
+    copy();
+    msg.textContent = "Menyiapkan gambar…";
+    makePoster(h, wa.value.trim()).then(function (blob) {
+      return saveFile(slug(h) + "-posting.jpg", blob);
+    }).then(function (r) { msg.textContent = r; }, function (e) { msg.textContent = e; });
+  };
+  ba.onclick = function () {
+    copy();
+    var i = 0;
+    (function next() {
+      if (i >= h.photos.length) { msg.textContent = "Semua foto tersimpan. Buka Facebook/Threads, pilih fotonya dari galeri."; return; }
+      var src = h.photos[i];
+      fetch(src).then(function (r) { return r.blob(); }).then(function (b) {
+        return saveFile(slug(h) + "-" + (i + 1) + ".jpg", b);
+      }).then(function () { i++; msg.textContent = "Foto " + i + " dari " + h.photos.length + " tersimpan"; next(); },
+        function (e) { msg.textContent = e; });
+    })();
+  };
+  box.appendChild(row2);
+  box.appendChild(row);
+  box.appendChild(el("p", { "class": "note", style: "border:0;padding:0" }, "Dari HP: tekan Simpan gambar posting. Di iPhone langsung muncul menu Bagikan, pilih Facebook atau Threads. Di Android gambar tersimpan, lalu tekan Posting ke Facebook/Threads dan pilih gambarnya. Teks sudah tersalin, tinggal tempel."));
+  box.appendChild(msg);
+  return box;
+}
+var SHEET_ID = "1qPzRLu_AKeqNQDpI3SFf0OVIAsfwwa5am9qM59UM24Q", FOLDER_ID = "1HBEigsX_Hsl-P_bmmX0bp5d3xdurbOw1";
+function mcpMsg(e, server) {
+  var c = e && e.code, s = (e && e.server) || server || "konektor";
+  if (c === "server_not_connected" || c === "selection_required") return "Sambungkan " + s + " dulu di claude.ai: Pengaturan → Konektor, lalu coba lagi.";
+  if (c === "needs_reauth") return s + " perlu disambungkan ulang di Pengaturan → Konektor.";
+  if (c === "approval_required" || c === "not_in_manifest" || c === "consent_required") return "Halaman ini perlu izin memakai " + s + ". Tekan tombolnya lagi dan pilih Izinkan.";
+  if (c === "not_granted" || c === "capability_disabled" || c === "capability_removed") return "Fitur antrian hanya jalan saat halaman dibuka di claude.ai atau aplikasi Claude.";
+  if (c === "server_unavailable" || c === "upstream_error") return s + " sedang tidak bisa dihubungi. Cek dulu di Drive/Sheet apakah sebagian sudah masuk, lalu coba lagi.";
+  if (c === "tool_error") return s + " menolak: " + (e.message || "").slice(0, 160);
+  return "Gagal: " + ((e && e.message) || e);
+}
+function b64(blob) { return new Promise(function (ok, no) { var f = new FileReader(); f.onload = function () { ok(String(f.result).split(",")[1]); }; f.onerror = no; f.readAsDataURL(blob); }); }
+function makeMapSlide(h, wa) {
+  var W = 1080, H = 1080, c = document.createElement("canvas"); c.width = W; c.height = H;
+  var x = c.getContext("2d");
+  var ready = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+  return ready.then(function () {
+    drawMini(x, h, 0, 0, W, 800, 1080 / 50);
+    var bw = perkBadge(x, -1000, -1000, 30); perkBadge(x, W - bw - 16, 16, 30);
+    x.fillStyle = "#17262a"; x.fillRect(0, 800, W, 280); x.textBaseline = "alphabetic"; x.textAlign = "left";
+    x.fillStyle = "#c4410c"; x.fillRect(48, 828, 200, 54);
+    x.fillStyle = "#ffffff"; x.font = "700 34px 'Bricolage Grotesque', sans-serif"; x.fillText("DIJUAL", 70, 867);
+    x.font = "700 46px 'Bricolage Grotesque', sans-serif"; x.fillText(h.price ? "Rp " + h.price.toLocaleString("id-ID") + " juta" : "Harga: hubungi " + AGENT, 272, 872, W - 320);
+    x.font = "500 32px 'IBM Plex Sans', sans-serif"; x.fillStyle = "#d6e3e3"; x.fillText(h.name + " · " + h.area + (h.kec ? ", Kec. " + h.kec : ""), 48, 940, W - 96);
+    x.fillStyle = "#1fa855"; x.fillRect(0, 980, W, 100);
+    x.fillStyle = "#ffffff"; x.font = "700 38px 'Bricolage Grotesque', sans-serif"; x.fillText(AGENT, 48, 1044);
+    x.font = "500 32px 'IBM Plex Mono', monospace"; x.textAlign = "right"; x.fillText("WA " + waNice(wa || AGENT_WA), W - 48, 1043);
+    return new Promise(function (ok, no) { c.toBlob(function (b) { b ? ok(b) : no("Gagal membuat slide peta."); }, "image/jpeg", 0.88); });
+  });
+}
+function queuePost(h, wa, text, say) {
+  var mcp, fileArgs = false, links = [], files = [];
+  if (!(window.claude && window.claude.use)) return Promise.reject("Fitur antrian hanya jalan saat halaman dibuka di claude.ai atau aplikasi Claude.");
+  return window.claude.use("mcp").then(function (m) {
+    if (!m) throw "Fitur antrian hanya jalan saat halaman dibuka di claude.ai atau aplikasi Claude.";
+    mcp = m;
+    return mcp.listTools().then(function (r) { fileArgs = !!(r && r.fileArgs); }, function () {});
+  }).then(function () { return makeMapSlide(h, wa); }).then(function (map) {
+    files.push(map);
+    return Promise.all(h.photos.slice(0, 9).map(function (s) { return fetch(s).then(function (r) { return r.blob(); }).catch(function () { return null; }); }));
+  }).then(function (bl) {
+    bl.forEach(function (b) { if (b) files.push(b); });
+    var i = 0;
+    function next() {
+      if (i >= files.length) return Promise.resolve();
+      var n = i + 1, name = slug(h) + "-" + Date.now() + "-" + n + ".jpg";
+      say("Mengunggah slide " + n + " dari " + files.length + " ke Google Drive…");
+      var p = b64(files[i]);
+      return p.then(function (content) {
+        return mcp.callTool("Google Drive", "create_file", { title: name, parentId: FOLDER_ID, contentMimeType: "image/jpeg", disableConversionToGoogleType: true, base64Content: content });
+      }).then(function (r) {
+        var pl = r && r.payload, id = pl && (pl.id || (pl.file && pl.file.id));
+        if (!id) throw { code: "tool_error", server: "Google Drive", message: "ID file tidak terbaca" };
+        links.push("https://drive.google.com/uc?export=download&id=" + id); i++; return next();
+      }, function (e) { throw mcpMsg(e, "Google Drive"); });
+    }
+    return next();
+  }).then(function () {
+    say("Mencatat ke Sheet Antrian Posting…");
+    return mcp.callTool("Google Sheets", "append_values", { spreadsheetId: SHEET_ID, range: "'Antrian Posting'!A1", values: [[new Date().toLocaleString("id-ID"), h.name, text, links.join(","), "siap", ""]] })
+      .then(function () { return links.length; }, function (e) { throw mcpMsg(e, "Google Sheets"); });
+  });
+}
+function slug(h) { return h.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
+var dlP = null;
+function saveFile(name, blob) {
+  if (!dlP) dlP = (window.claude && window.claude.use) ? window.claude.use("downloads").catch(function () { return null; }) : Promise.resolve(null);
+  return dlP.then(function (dl) {
+    if (!dl) { var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); return "Tersimpan: " + name; }
+    return dl.save({ filename: name, data: blob }).then(function () { return "Tersimpan: " + name; }, function (e) {
+      if (e && e.code === "declined") throw "Penyimpanan dibatalkan.";
+      if (e && e.code === "rate_limited") throw "Tunggu sebentar, lalu coba lagi.";
+      throw "Gagal menyimpan file.";
+    });
+  });
+}
+function loadImg(src) {
+  return new Promise(function (ok, no) { var im = new Image(); im.onload = function () { ok(im); }; im.onerror = no; im.src = src; });
+}
+function cover(ctx, im, x, y, w, h) {
+  var r = Math.max(w / im.width, h / im.height), sw = w / r, sh = h / r;
+  ctx.drawImage(im, (im.width - sw) / 2, (im.height - sh) / 2, sw, sh, x, y, w, h);
+}
+function drawMini(x, h, X, Y, Wd, Hd, k) {
+  var cx = px(h.lon), cy = py(h.lat);
+  function mx(lon) { return X + Wd / 2 + (px(lon) - cx) * k; }
+  function my(lat) { return Y + Hd / 2 + (py(lat) - cy) * k; }
+  x.save(); x.beginPath(); x.rect(X, Y, Wd, Hd); x.clip();
+  x.fillStyle = "#e3eae6"; x.fillRect(X, Y, Wd, Hd);
+  KEC.forEach(function (kc) {
+    x.beginPath();
+    kc.rings.forEach(function (r) { r.forEach(function (p, i) { var a = mx(p[0]), b = my(p[1]); if (i) x.lineTo(a, b); else x.moveTo(a, b); }); x.closePath(); });
+    x.fillStyle = kc.kec === h.kec ? "#fbe5da" : (kc.kab === "Kota Medan" ? "#d6e3ea" : "#e3eae6"); x.fill();
+    x.strokeStyle = "#9fb2b3"; x.lineWidth = 1.5; x.stroke();
+  });
+  x.font = "600 22px 'IBM Plex Mono', monospace"; x.textAlign = "center"; x.fillStyle = "rgba(23,38,42,.45)";
+  KEC.forEach(function (kc) { if (!kc.kec || kc.cx == null) return; var a = X + Wd / 2 + (kc.cx - cx) * k, b = Y + Hd / 2 + (kc.cy - cy) * k; if (a > X + 60 && a < X + Wd - 60 && b > Y + 30 && b < Y + Hd - 50) x.fillText(kc.kec.toUpperCase(), a, b); });
+  var RW2 = [10, 8, 7, 5], rs = (ROADS || []).slice().sort(function (a, b) { return b[1] - a[1]; });
+  [true, false].forEach(function (cs) {
+    rs.forEach(function (r) {
+      x.beginPath(); r[2].forEach(function (p, i) { var a = mx(p[0]), b = my(p[1]); if (i) x.lineTo(a, b); else x.moveTo(a, b); });
+      x.lineCap = "round"; x.lineJoin = "round"; x.lineWidth = RW2[r[1]] + (cs ? 3 : 0);
+      x.strokeStyle = cs ? "#8a9b9c" : (r[1] === 0 ? "#e08a62" : r[1] < 3 ? "#f5dc8c" : "#ffffff"); x.stroke();
+    });
+  });
+  var best = {};
+  (ROADS || []).forEach(function (r) {
+    for (var i = 1; i < r[2].length; i++) {
+      var a = [mx(r[2][i - 1][0]), my(r[2][i - 1][1])], b = [mx(r[2][i][0]), my(r[2][i][1])], m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      if (m[0] < X + 40 || m[0] > X + Wd - 40 || m[1] < Y + 24 || m[1] > Y + Hd - 24) continue;
+      var L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (!best[r[0]] || L > best[r[0]].L) best[r[0]] = { L: L, a: a, b: b };
+    }
+  });
+  x.font = "600 19px 'IBM Plex Sans', sans-serif"; x.textAlign = "center"; x.textBaseline = "middle";
+  Object.keys(best).forEach(function (n) {
+    var s = best[n], t = n.replace(/^Jalan /, "Jl. ").replace("Jenderal ", "");
+    if (s.L * 1.8 < x.measureText(t).width) return;
+    var ang = Math.atan2(s.b[1] - s.a[1], s.b[0] - s.a[0]);
+    if (ang > Math.PI / 2) ang -= Math.PI; if (ang < -Math.PI / 2) ang += Math.PI;
+    x.save(); x.translate((s.a[0] + s.b[0]) / 2, (s.a[1] + s.b[1]) / 2); x.rotate(ang);
+    x.lineWidth = 5; x.strokeStyle = "#ffffff"; x.strokeText(t, 0, -13); x.fillStyle = "#17262a"; x.fillText(t, 0, -13); x.restore();
+  });
+  x.font = "500 17px 'IBM Plex Sans', sans-serif"; x.textAlign = "left";
+  (POIS || []).forEach(function (p) {
+    if (p[1] === "school") return;
+    var a = mx(p[2]), b = my(p[3]); if (a < X || a > X + Wd || b < Y || b > Y + Hd) return;
+    var st = POI_STYLE[p[1]] || ["#64748b", ""];
+    x.beginPath(); x.arc(a, b, 9, 0, 7); x.fillStyle = st[0]; x.fill();
+    x.lineWidth = 4; x.strokeStyle = "#ffffff"; x.strokeText(p[0], a + 14, b); x.fillStyle = "#17262a"; x.fillText(p[0], a + 14, b);
+  });
+  var a0 = X + Wd / 2, b0 = Y + Hd / 2;
+  x.beginPath(); x.arc(a0, b0, 30, 0, 7); x.fillStyle = "rgba(196,65,12,.22)"; x.fill();
+  x.beginPath(); x.arc(a0, b0, 13, 0, 7); x.fillStyle = "#c4410c"; x.fill(); x.lineWidth = 4; x.strokeStyle = "#ffffff"; x.stroke();
+  var nb = nearby(h), lines = [];
+  if (nb.road) lines.push("Dekat " + nb.road.replace(/^Jalan /, "Jl. ").replace("Jenderal ", ""));
+  nb.pois.forEach(function (q) { lines.push(q[1].toLocaleString("id-ID", { maximumFractionDigits: 1 }) + " km ke " + q[0]); });
+  if (lines.length) {
+    x.font = "600 20px 'IBM Plex Sans', sans-serif"; x.textAlign = "left"; x.textBaseline = "alphabetic";
+    var bw = Math.max.apply(0, lines.map(function (l) { return x.measureText(l).width; })) + 28;
+    x.fillStyle = "rgba(255,255,255,.92)"; x.fillRect(X + 12, Y + 12, Math.min(bw, Wd - 24), lines.length * 28 + 16);
+    x.fillStyle = "#17262a"; lines.forEach(function (l, i) { x.fillText(l, X + 26, Y + 40 + i * 28, Wd - 52); });
+  }
+  var p500 = 0.5 / 111.32 * 1000 * k;
+  x.fillStyle = "rgba(255,255,255,.88)"; x.fillRect(X + 12, Y + Hd - 48, p500 + 24, 36);
+  x.fillStyle = "#17262a"; x.fillRect(X + 24, Y + Hd - 22, p500, 4);
+  x.font = "500 15px 'IBM Plex Mono', monospace"; x.textBaseline = "alphabetic"; x.fillText("500 m", X + 24, Y + Hd - 29);
+  x.font = "400 13px 'IBM Plex Sans', sans-serif"; x.textAlign = "right"; x.fillStyle = "#5d6f72"; x.fillText("© OpenStreetMap", X + Wd - 10, Y + Hd - 10);
+  x.textAlign = "left"; x.restore();
+}
+function nearby(h) {
+  function km(lon, lat) { return Math.hypot((lon - h.lon) * 111.32 * COS, (lat - h.lat) * 111.32); }
+  var road = null, rd = 1e9;
+  (ROADS || []).forEach(function (r) { if (r[1] === 0) return; r[2].forEach(function (p) { var d = km(p[0], p[1]); if (d < rd) { rd = d; road = r[0]; } }); });
+  var ps = (POIS || []).filter(function (p) { return p[1] !== "school"; }).map(function (p) { return [p[0], km(p[2], p[3])]; }).sort(function (a, b) { return a[1] - b[1]; }).slice(0, 2).filter(function (p) { return p[1] < 6; });
+  return { road: rd < 1.5 ? road : null, pois: ps };
+}
+function makePoster(h, wa) {
+  var W = 1080, H = 1350, KZ = 536 / 40;
+  var c = document.createElement("canvas"); c.width = W; c.height = H;
+  var x = c.getContext("2d");
+  var ready = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+  return ready.then(function () { return Promise.all(h.photos.slice(0, 3).map(function (s) { return loadImg(s).catch(function () { return null; }); })); }).then(function (ims) {
+    ims = ims.filter(Boolean);
+    x.fillStyle = "#17262a"; x.fillRect(0, 0, W, H);
+    if (ims.length) {
+      cover(x, ims[0], 0, 0, W, 560);
+      var rest = ims.slice(1, 3);
+      if (rest.length) {
+        drawMini(x, h, 0, 568, 536, 340, KZ);
+        var w = (536 - (rest.length - 1) * 8) / rest.length;
+        rest.forEach(function (im, i) { cover(x, im, 544 + i * (w + 8), 568, w, 340); });
+      } else drawMini(x, h, 0, 568, W, 340, KZ);
+    } else drawMini(x, h, 0, 0, W, 908, KZ * 1.2);
+    var top = 908;
+    x.textBaseline = "alphabetic";
+    x.fillStyle = "#c4410c"; x.fillRect(56, top + 28, 230, 62);
+    x.fillStyle = "#ffffff"; x.font = "700 40px 'Bricolage Grotesque', sans-serif"; x.fillText("DIJUAL", 80, top + 73);
+    perkBadge(x, 302, top + 28, 34);
+    x.font = "700 60px 'Bricolage Grotesque', sans-serif";
+    x.fillText(h.price ? "Rp " + h.price.toLocaleString("id-ID") + " juta" : "Harga: hubungi " + AGENT, 56, top + 160, W - 112);
+    x.font = "500 34px 'IBM Plex Sans', sans-serif"; x.fillStyle = "#d6e3e3";
+    x.fillText(h.area + (h.kec ? ", Kec. " + h.kec : ""), 56, top + 214, W - 112);
+    var s = []; if (h.lt) s.push("LT " + h.lt + " m²"); if (h.lb) s.push("LB " + h.lb + " m²"); if (h.kt) s.push(h.kt + " KT"); if (h.km) s.push(h.km + " KM"); if (h.sert) s.push(h.sert);
+    x.font = "500 32px 'IBM Plex Mono', monospace"; x.fillStyle = "#ffffff";
+    if (s.length) x.fillText(s.join("  •  "), 56, top + 270, W - 112);
+    x.fillStyle = "#1fa855"; x.fillRect(0, H - 128, W, 128);
+    x.fillStyle = "#ffffff"; x.font = "700 44px 'Bricolage Grotesque', sans-serif"; x.fillText(AGENT, 56, H - 70);
+    x.font = "500 34px 'IBM Plex Mono', monospace"; x.fillText("WA " + waNice(wa || AGENT_WA), 56, H - 26);
+    return new Promise(function (ok, no) { c.toBlob(function (b) { b ? ok(b) : no("Gagal membuat gambar."); }, "image/jpeg", 0.9); });
+  });
+}
+function makePosterOld(h, wa) {
+  var W = 1080, H = 1350;
+  var c = document.createElement("canvas"); c.width = W; c.height = H;
+  var x = c.getContext("2d");
+  var ready = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+  return ready.then(function () { return Promise.all(h.photos.slice(0, 4).map(function (s) { return loadImg(s).catch(function () { return null; }); })); }).then(function (ims) {
+    ims = ims.filter(Boolean);
+    x.fillStyle = "#17262a"; x.fillRect(0, 0, W, H);
+    var top = 860;
+    if (ims.length) {
+      cover(x, ims[0], 0, 0, W, ims.length > 1 ? 640 : top);
+      var rest = ims.slice(1), n = rest.length;
+      rest.forEach(function (im, i) { var w = (W - (n - 1) * 8) / n; cover(x, im, i * (w + 8), 648, w, top - 648); });
+    } else {
+      x.fillStyle = "#2a3b3f"; x.fillRect(0, 0, W, top);
+      x.fillStyle = "#93a8aa"; x.font = "500 40px 'IBM Plex Mono', monospace"; x.textAlign = "center"; x.fillText("Foto menyusul", W / 2, top / 2); x.textAlign = "left";
+    }
+    x.fillStyle = "#c4410c"; x.fillRect(56, top - 36, 260, 72);
+    x.fillStyle = "#ffffff"; x.font = "700 44px 'Bricolage Grotesque', sans-serif"; x.fillText("DIJUAL", 82, top + 16);
+    x.fillStyle = "#ffffff"; x.font = "700 64px 'Bricolage Grotesque', sans-serif";
+    x.fillText(h.price ? "Rp " + h.price.toLocaleString("id-ID") + " juta" : "Harga: chat agen", 56, top + 120);
+    x.font = "500 38px 'IBM Plex Sans', sans-serif"; x.fillStyle = "#d6e3e3";
+    x.fillText(h.area + (h.kec ? ", Kec. " + h.kec : ""), 56, top + 184, W - 112);
+    var s = []; if (h.lt) s.push("LT " + h.lt + " m²"); if (h.lb) s.push("LB " + h.lb + " m²"); if (h.kt) s.push(h.kt + " KT"); if (h.km) s.push(h.km + " KM"); if (h.sert) s.push(h.sert);
+    x.font = "500 36px 'IBM Plex Mono', monospace"; x.fillStyle = "#ffffff";
+    if (s.length) x.fillText(s.join("  •  "), 56, top + 252, W - 112);
+    x.fillStyle = "#ff7f45"; x.fillRect(0, H - 130, W, 130);
+    x.fillStyle = "#1b0d05"; x.font = "700 46px 'Bricolage Grotesque', sans-serif";
+    x.fillText(wa ? "WA " + wa : "Hubungi agen lewat pesan", 56, H - 50, W - 112);
+    return new Promise(function (ok, no) { c.toBlob(function (b) { b ? ok(b) : no("Gagal membuat gambar."); }, "image/jpeg", 0.9); });
+  });
+}
+function renderList() {
+  var box = document.getElementById("list");
+  box.textContent = "";
+  HOUSES.forEach(function (h) {
+    var c = el("article", { "class": "item" + (h.id === selected ? " on" : "") });
+    photoBlock(h, c, false);
+    var b = el("div", { "class": "ibody" });
+    b.appendChild(el("h3", {}, h.name));
+    b.appendChild(el("p", { "class": "place" }, h.area + (h.kec ? " · Kec. " + h.kec : "")));
+    var ch = el("div", { "class": "chips" });
+    ch.appendChild(el("span", { "class": "chip acc" }, priceText(h)));
+    ch.appendChild(el("span", { "class": "chip perk" }, "✓ " + PERK));
+    if (h.sert) ch.appendChild(el("span", { "class": "chip" }, h.sert));
+    if (h.lt) ch.appendChild(el("span", { "class": "chip" }, "LT " + h.lt + " m²"));
+    if (h.lb) ch.appendChild(el("span", { "class": "chip" }, "LB " + h.lb + " m²"));
+    if (h.kt) ch.appendChild(el("span", { "class": "chip" }, h.kt + " KT"));
+    if (h.km) ch.appendChild(el("span", { "class": "chip" }, h.km + " KM"));
+    ch.appendChild(el("span", { "class": "chip" }, h.photos.length ? h.photos.length + " foto" : "foto menyusul"));
+    b.appendChild(ch);
+    var go = el("button", { "class": "btn ghost", type: "button" }, "Lihat di peta");
+    go.onclick = function () { select(h.id, true); mapEl.scrollIntoView({ behavior: "smooth", block: "start" }); };
+    var r2 = el("div", { "class": "row" });
+    r2.appendChild(go);
+    r2.appendChild(el("a", { "class": "btn wa", href: waLink(h), target: "_blank", rel: "noopener", style: "padding:8px 14px;margin-top:4px" }, "Chat WA"));
+    b.appendChild(r2);
+    c.appendChild(b);
+    box.appendChild(c);
+  });
+  document.getElementById("listCount").textContent = HOUSES.length + " listing";
+}
+function select(id, fly) {
+  selected = id;
+  if (id !== null && fly) {
+    var h = find(id), k = Math.max(view.k, 12);
+    view.k = k; view.tx = W / 2 - px(h.lon) * k; view.ty = H / 2 - py(h.lat) * k + 20;
+    if (W > 560) view.tx += 180;
+  }
+  document.getElementById("hint").hidden = id !== null;
+  apply(); renderPop(); renderList();
+}
+
+document.getElementById("nHouse").textContent = HOUSES.length;
+resize(); fitHouses(); renderList();
+window.addEventListener("resize", resize);
+fetch("kec_medan.json").then(function (r) { return r.json(); }).then(function (data) {
+  KEC = data; buildWorld(); apply(); renderList();
+}).catch(function () {});
+fetch("roads.json").then(function (r) { return r.json(); }).then(function (d) { ROADS = d.r; POIS = d.p; buildRoads(); apply(); }).catch(function () {});
+var ROADS = [], POIS = [];
+function buildRoads() {
+  var g = document.getElementById("roadsW"); g.textContent = "";
+  var sorted = ROADS.slice().sort(function (a, b) { return b[1] - a[1]; });
+  ["case", "fill"].forEach(function (layer) {
+    sorted.forEach(function (r) {
+      var d = "M" + r[2].map(function (p) { return px(p[0]).toFixed(2) + " " + py(p[1]).toFixed(2); }).join("L");
+      var w = [6, 5, 4.2, 3][r[1]];
+      node("path", { d: d, "class": "rd " + (layer === "case" ? "case" : "c" + r[1]), "stroke-width": layer === "case" ? w + 2 : w }, g);
+    });
+  });
+}
+function drawRoadLabels() {
+  var g = document.getElementById("rlabels"); g.textContent = "";
+  if (!ROADS || !ROADS.length || view.k < 2.5) return;
+  var best = {};
+  ROADS.forEach(function (r) {
+    if (r[1] === 3 && view.k < 6) return;
+    var pts = r[2].map(function (p) { return [sx(px(p[0])), sy(py(p[1]))]; }).filter(function (q) { return q[0] > 10 && q[0] < W - 10 && q[1] > 10 && q[1] < H - 10; });
+    if (pts.length < 2) return;
+    var L = 0; for (var i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    if (!best[r[0]] || L > best[r[0]].L) best[r[0]] = { L: L, pts: pts };
+  });
+  var defs = node("defs", {}, g), n = 0;
+  Object.keys(best).forEach(function (name) {
+    var s = best[name], label = name.replace(/^Jalan /, "Jl. ").replace("Jenderal ", "");
+    if (s.L < label.length * 6.3 + 16) return;
+    var p = s.pts; if (p[p.length - 1][0] < p[0][0]) p = p.slice().reverse();
+    var id = "rl" + (n++);
+    node("path", { id: id, d: "M" + p.map(function (q) { return q[0].toFixed(1) + " " + q[1].toFixed(1); }).join("L") }, defs);
+    var t = node("text", { "class": "rlabel", dy: "-5" }, g);
+    var tp = node("textPath", { href: "#" + id, startOffset: "50%", "text-anchor": "middle" }, t);
+    tp.textContent = label;
+  });
+}
+var POI_STYLE = { mall: ["#7c3aed", "M"], hospital: ["#dc2626", "RS"], university: ["#2563eb", "U"], market: ["#ca8a04", "P"], station: ["#0f766e", "KA"], school: ["#64748b", "S"] };
+function drawPois() {
+  var g = document.getElementById("pois"); g.textContent = "";
+  if (!POIS || !POIS.length || view.k < 3) return;
+  POIS.forEach(function (p) {
+    if (p[1] === "school" && view.k < 9) return;
+    var x = sx(px(p[2])), y = sy(py(p[3]));
+    if (x < -10 || x > W + 10 || y < -10 || y > H + 10) return;
+    var st = POI_STYLE[p[1]] || ["#64748b", "•"];
+    var gg = node("g", { "class": "poi" }, g);
+    node("title", {}, gg).textContent = p[0];
+    node("circle", { cx: x, cy: y, r: 8, fill: st[0] }, gg);
+    node("text", { "class": "ic", x: x, y: y + 3 }, gg).textContent = st[1];
+    if (view.k >= 5) node("text", { "class": "nm", x: x + 11, y: y + 4 }, gg).textContent = p[0];
+  });
+}
+
+/* === Data dari Google Sheet (tab "Untuk Web", dipublikasikan sebagai CSV) === */
+var CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSBO5C65KcR67hat5AEp4Q4LI35ogogD6jHyo7DK-ijDbMNp7soNkFx52oC4clAkheaY1CCYp7Mj-o2/pub?gid=1&single=true&output=csv";
+function parseCSV(t) {
+  var rows = [], row = [], f = "", q = false;
+  for (var i = 0; i < t.length; i++) {
+    var c = t[i];
+    if (q) { if (c === '"') { if (t[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === ",") { row.push(f); f = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && t[i + 1] === "\n") i++; row.push(f); rows.push(row); row = []; f = ""; }
+    else f += c;
+  }
+  if (f !== "" || row.length) { row.push(f); rows.push(row); }
+  return rows;
+}
+function num(v) {
+  v = String(v == null ? "" : v).trim(); if (!v) return null;
+  if (v.indexOf(",") >= 0) v = v.replace(/\./g, "").replace(",", ".");
+  var n = parseFloat(v); return isNaN(n) ? null : n;
+}
+function driveImg(u) { var m = String(u).match(/[-\w]{25,}/); return m ? "https://drive.google.com/thumbnail?id=" + m[0] + "&sz=w1200" : u; }
+function loadSheet() {
+  if (!CSV_URL || CSV_URL.indexOf("http") !== 0) return;
+  fetch(CSV_URL, { cache: "no-store" }).then(function (r) { if (!r.ok) throw r.status; return r.text(); }).then(function (t) {
+    var rows = parseCSV(t).slice(1).filter(function (r) { return r[0] && num(r[8]) != null && num(r[9]) != null; });
+    if (!rows.length) return;
+    HOUSES = rows.map(function (r, i) {
+      var photos = (r[11] || "").split(",").map(function (x) { return x.trim(); }).filter(Boolean).map(driveImg);
+      return { id: i + 1, name: r[0], area: (r[1] || "").replace(/,\s*Sumatera Utara\s*$/i, ""), lat: num(r[8]), lon: num(r[9]), maps: r[10] || "",
+        price: num(r[2]), lt: num(r[3]), lb: num(r[4]), kt: num(r[5]), km: num(r[6]), sert: r[7] || null,
+        photos: photos, captions: photos.map(function (_, j) { return "Foto " + (j + 1); }) };
+    });
+    selected = null;
+    document.getElementById("nHouse").textContent = HOUSES.length;
+    if (KEC.length) buildWorld();
+    fitHouses(); renderPop(); renderList();
+  }).catch(function () {});
+}
+loadSheet();
+</script>
+</body>
+</html>
