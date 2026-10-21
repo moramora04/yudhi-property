@@ -276,21 +276,45 @@ function num(v) {
   var n = parseFloat(v); return isNaN(n) ? null : n;
 }
 function driveImg(u) { var m = String(u).match(/[-\w]{25,}/); return m ? "https://drive.google.com/thumbnail?id=" + m[0] + "&sz=w1200" : u; }
+var SHEET_H = null, TITIP_H = [];
+function setHouses() {
+  var list = (SHEET_H || HOUSES0).concat(TITIP_H.filter(function (t) {
+    return !(SHEET_H || HOUSES0).some(function (h) { return Math.abs(h.lat - t.lat) < 1e-6 && Math.abs(h.lon - t.lon) < 1e-6; });
+  }));
+  list.forEach(function (h, i) { h.id = i + 1; });
+  HOUSES = list; selected = null;
+  document.getElementById("nHouse").textContent = HOUSES.length;
+  if (KEC.length) buildWorld();
+  drawPins(); fitHouses(); renderPop(); renderList();
+}
+var HOUSES0 = HOUSES.slice();
 function loadSheet() {
   if (!CSV_URL || CSV_URL.indexOf("http") !== 0) return;
   fetch(CSV_URL, { cache: "no-store" }).then(function (r) { if (!r.ok) throw r.status; return r.text(); }).then(function (t) {
     var rows = parseCSV(t).slice(1).filter(function (r) { return r[0] && num(r[8]) != null && num(r[9]) != null; });
     if (!rows.length) return;
-    HOUSES = rows.map(function (r, i) {
+    SHEET_H = rows.map(function (r) {
       var photos = (r[11] || "").split(",").map(function (x) { return x.trim(); }).filter(Boolean).map(driveImg);
-      return { id: i + 1, name: r[0], area: (r[1] || "").replace(/,\s*Sumatera Utara\s*$/i, ""), lat: num(r[8]), lon: num(r[9]), maps: r[10] || "",
+      return { name: r[0], area: (r[1] || "").replace(/,\s*Sumatera Utara\s*$/i, ""), lat: num(r[8]), lon: num(r[9]), maps: r[10] || "",
         price: num(r[2]), lt: num(r[3]), lb: num(r[4]), kt: num(r[5]), km: num(r[6]), sert: r[7] || null,
         photos: photos, captions: photos.map(function (_, j) { return "Foto " + (j + 1); }) };
     });
-    selected = null;
-    document.getElementById("nHouse").textContent = HOUSES.length;
-    if (KEC.length) buildWorld();
-    drawPins(); fitHouses(); renderPop(); renderList();
+    setHouses();
+  }).catch(function () {});
+}
+/* Listing dari Form Titip Jual yang statusnya "Tayang" (lewat Apps Script; data rahasia sudah disaring di server) */
+function loadTitip() {
+  if (typeof ENDPOINT === "undefined" || !ENDPOINT) return;
+  fetch(ENDPOINT + "?list=1").then(function (r) { return r.json(); }).then(function (res) {
+    if (!res.ok || !res.items) return;
+    TITIP_H = res.items.filter(function (x) { return num(x.lat) != null && num(x.lon) != null; }).map(function (x) {
+      var photos = (x.photos || []).map(driveImg);
+      return { name: x.name, area: x.area || "", lat: num(x.lat), lon: num(x.lon), maps: x.maps || "",
+        price: num(x.price), lt: num(x.lt), lb: num(x.lb), kt: num(x.kt), km: num(x.km), sert: x.sert || null,
+        photos: photos, captions: photos.map(function (_, j) { return "Foto " + (j + 1); }) };
+    });
+    if (TITIP_H.length) setHouses();
   }).catch(function () {});
 }
 loadSheet();
+loadTitip();

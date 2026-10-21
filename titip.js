@@ -1,7 +1,6 @@
 /* Form Titip Jual — Yudhi Property
    Data dikirim ke Google Apps Script (Web App) yang menulis ke Google Sheet dan menyimpan foto di Google Drive.
-   Tempel URL Web App hasil "Deploy" di bawah ini: */
-var ENDPOINT = "";
+   URL Web App (hasil "Deploy" Apps Script) diatur di config.js */
 var AGENT_WA = "6289691757802";
 
 var form = document.getElementById("tf"), ferr = document.getElementById("ferr");
