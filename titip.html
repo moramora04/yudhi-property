@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Titip jual rumah, ruko, atau tanah di Medan & Deli Serdang lewat Yudhi Property. Gratis, tanpa biaya dari pemilik.">
+<meta property="og:title" content="Titip Jual Properti · Yudhi Property">
+<meta property="og:description" content="Isi data rumah Anda, tandai lokasinya di peta, unggah foto. Gratis untuk pemilik.">
+<meta property="og:image" content="logo.png">
+<link rel="icon" href="logo.png">
+<style>html,body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Titip Jual Properti · Yudhi Property</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<link rel="stylesheet" href="style.css?v=3">
+</head>
+<body>
+<nav class="topnav">
+  <div class="navin">
+  <a class="brand" href="./"><img src="logo.png" alt="" width="42" height="42"><span><b>Yudhi Property</b><small>Medan &amp; Deli Serdang</small></span></a>
+  <a class="agent ghostnav" href="./">&larr; Lihat rumah dijual</a>
+  </div>
+</nav>
+<div class="band">
+<header>
+  <div>
+    <p class="eyebrow">Titip jual · gratis untuk pemilik</p>
+    <h1>Titip jual rumah Anda<br>ke Yudhi Property.</h1>
+    <p class="sub">Isi data di bawah, tandai lokasinya di peta, dan unggah foto. Kami yang foto ulang bila perlu, pasang di peta, dan iklankan ke calon pembeli. Nomor HP dan harga net hanya untuk agen, tidak ditampilkan ke publik.</p>
+  </div>
+</header>
+</div>
+
+<div class="wrap">
+<form id="tf" class="tform" novalidate>
+  <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+  <fieldset class="card">
+    <legend><span class="num">1</span>Kontak pemilik</legend>
+    <div class="grid2">
+      <label class="fld"><span class="lb">Nama pemilik <b>*</b></span><input name="nama" required autocomplete="name" placeholder="Nama lengkap"></label>
+      <label class="fld"><span class="lb">No. HP / WhatsApp <b>*</b></span><input name="wa" required inputmode="tel" autocomplete="tel" placeholder="08xx-xxxx-xxxx"></label>
+    </div>
+  </fieldset>
+
+  <fieldset class="card">
+    <legend><span class="num">2</span>Jenis &amp; lokasi</legend>
+    <div class="fld"><span class="lb">Jenis properti <b>*</b></span>
+      <div class="seg" role="radiogroup">
+        <label><input type="radio" name="jenis" value="Rumah" required checked><span>Rumah</span></label>
+        <label><input type="radio" name="jenis" value="Ruko"><span>Ruko</span></label>
+        <label><input type="radio" name="jenis" value="Tanah"><span>Tanah</span></label>
+        <label><input type="radio" name="jenis" value="Lainnya"><span>Lainnya</span></label>
+      </div>
+    </div>
+    <label class="fld"><span class="lb">Alamat lengkap <b>*</b></span><textarea name="alamat" required rows="2" placeholder="Jalan, gang, nomor, patokan (dekat apa)"></textarea></label>
+    <div class="grid2">
+      <label class="fld"><span class="lb">Kecamatan <b>*</b></span><select name="kecamatan" required><option value="">Pilih kecamatan…</option></select><small>Terisi otomatis saat titik di peta ditandai.</small></label>
+      <label class="fld"><span class="lb">Kelurahan / desa</span><input name="kelurahan" placeholder="Contoh: Tanjung Gusta"></label>
+    </div>
+    <div class="fld"><span class="lb">Titik lokasi rumah <b>*</b></span>
+      <button type="button" class="btn gps" id="loc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7.5"/></svg><span id="locTxt">Saya sedang di rumah ini — pakai lokasi saya sekarang</span></button>
+      <small>Paling mudah: tekan tombol di atas saat Anda berada di rumah tersebut, lalu izinkan akses lokasi. Kalau sedang tidak di rumah, ketuk peta tepat di atas rumahnya. Titik bisa digeser.</small>
+      <div class="pick">
+        <div id="pmap"></div>
+      </div>
+      <p class="pinfo" id="pinfo">Belum ada titik. Ketuk peta di lokasi rumah.</p>
+      <label class="chk small"><input type="checkbox" name="tanpaTitik"> Saya tidak bisa menentukan titiknya, pakai alamat saja</label>
+    </div>
+  </fieldset>
+
+  <fieldset class="card">
+    <legend><span class="num">3</span>Harga</legend>
+    <div class="grid2">
+      <label class="fld"><span class="lb">Harga jual <em>(Rp juta)</em></span><input name="harga" inputmode="decimal" placeholder="Contoh: 350"><small id="hargaTxt"></small></label>
+      <label class="fld"><span class="lb">Harga net / harga pas <em>(Rp juta)</em></span><input name="net" inputmode="decimal" placeholder="Hanya untuk agen"><small>Tidak ditampilkan ke publik.</small></label>
+    </div>
+    <div class="fld"><span class="lb">Bisa KPR?</span>
+      <div class="seg">
+        <label><input type="radio" name="kpr" value="Bisa"><span>Bisa</span></label>
+        <label><input type="radio" name="kpr" value="Tidak"><span>Tidak</span></label>
+        <label><input type="radio" name="kpr" value="Belum tahu" checked><span>Belum tahu</span></label>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset class="card">
+    <legend><span class="num">4</span>Detail properti</legend>
+    <div class="grid3">
+      <label class="fld"><span class="lb">Luas tanah</span><input name="lt" placeholder="m² atau 10x20"></label>
+      <label class="fld"><span class="lb">Luas bangunan</span><input name="lb" placeholder="m² atau ukuran"></label>
+      <label class="fld"><span class="lb">Jumlah lantai</span><select name="lantai"><option value="">–</option><option>1</option><option>2</option><option>3</option><option>Lebih dari 3</option></select></label>
+      <label class="fld"><span class="lb">Kamar tidur</span><select name="kt"><option value="">–</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>Lebih dari 5</option></select></label>
+      <label class="fld"><span class="lb">Kamar mandi</span><select name="km"><option value="">–</option><option>1</option><option>2</option><option>3</option><option>4</option><option>Lebih dari 4</option></select></label>
+      <label class="fld"><span class="lb">Akses jalan</span><select name="akses"><option value="">–</option><option>Mobil bisa masuk</option><option>Mobil papasan</option><option>Hanya motor</option></select></label>
+      <label class="fld"><span class="lb">Daya listrik</span><select name="listrik"><option value="">–</option><option>450 VA</option><option>900 VA</option><option>1300 VA</option><option>2200 VA</option><option>Di atas 2200 VA</option><option>Belum ada</option></select></label>
+      <label class="fld"><span class="lb">Sumber air</span><select name="air"><option value="">–</option><option>PDAM</option><option>Sumur bor</option><option>PDAM + sumur bor</option></select></label>
+    </div>
+  </fieldset>
+
+  <fieldset class="card">
+    <legend><span class="num">5</span>Surat-surat</legend>
+    <div class="fld"><span class="lb">Sertifikat</span>
+      <div class="seg wrapseg">
+        <label><input type="radio" name="sert" value="SHM"><span>SHM</span></label>
+        <label><input type="radio" name="sert" value="HGB"><span>HGB</span></label>
+        <label><input type="radio" name="sert" value="AJB"><span>AJB</span></label>
+        <label><input type="radio" name="sert" value="Surat camat / notaris"><span>Surat camat / notaris</span></label>
+        <label><input type="radio" name="sert" value="Lainnya"><span>Lainnya</span></label>
+      </div>
+    </div>
+    <div class="grid2">
+      <label class="fld"><span class="lb">Sertifikat atas nama</span><select name="atasnama"><option value="">–</option><option>Nama sendiri</option><option>Suami / istri</option><option>Orang tua / ahli waris</option><option>Orang lain</option></select></label>
+      <label class="fld"><span class="lb">PBB tahun ini</span><select name="pbb"><option value="">–</option><option>Sudah lunas</option><option>Belum lunas</option><option>Tidak tahu</option></select></label>
+    </div>
+  </fieldset>
+
+  <fieldset class="card">
+    <legend><span class="num">6</span>Foto &amp; keterangan</legend>
+    <div class="fld"><span class="lb">Foto properti <em>(maks. 12 foto)</em></span>
+      <small>Tampak depan, ruang tamu, kamar, dapur, kamar mandi, dan jalan depan rumah. Foto otomatis diperkecil supaya cepat terkirim. Tidak perlu akun Google.</small>
+      <label class="drop" id="drop">
+        <input type="file" id="files" accept="image/*" multiple>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5.5-5.5L6 19"/></svg>
+        <span><b>Pilih foto</b> atau seret ke sini</span>
+      </label>
+      <div class="thumbsel" id="thumbs"></div>
+    </div>
+    <label class="fld"><span class="lb">Keterangan lain</span><textarea name="ket" rows="3" placeholder="Contoh: dekat sekolah, bebas banjir, sudah renovasi, alasan dijual, jam bisa disurvei"></textarea></label>
+  </fieldset>
+
+  <div class="card agree">
+    <label class="chk"><input type="checkbox" name="setuju" required> <span>Saya setuju properti ini dipasarkan oleh Yudhi Property dan fotonya ditayangkan di website serta media sosial. <b>*</b></span></label>
+  </div>
+
+  <p class="ferr" id="ferr" role="alert" hidden></p>
+  <div class="submitrow">
+    <button type="submit" class="btn big" id="send">Kirim data titip jual</button>
+    <span class="prog" id="prog" hidden></span>
+  </div>
+</form>
+
+<section class="card done" id="done" hidden>
+  <div class="okicon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg></div>
+  <h2>Terima kasih, data sudah kami terima.</h2>
+  <p>Agen Yudhi Property akan menghubungi Anda lewat WhatsApp untuk konfirmasi dan jadwal foto/survei. Kalau ingin lebih cepat, kabari kami sekarang.</p>
+  <div class="row"><a class="btn wa" id="doneWa" target="_blank" rel="noopener">Kabari lewat WhatsApp</a><a class="btn ghost" href="./">Kembali ke beranda</a></div>
+</section>
+
+<footer>
+  <div class="fcontact">
+    <b>Yudhi Property</b>
+    <a href="https://wa.me/6289691757802" target="_blank" rel="noopener">WA 0896-9175-7802</a>
+    <span class="credit">Melayani Medan, Deli Serdang, dan sekitarnya</span>
+  </div>
+  <p class="credit">Peta dasar © OpenStreetMap contributors. Batas kecamatan: Kemendagri 2020. Data pemilik hanya dipakai untuk keperluan pemasaran properti ini.</p>
+</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="titip.js?v=1"></script>
+</body>
+</html>
