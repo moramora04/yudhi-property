@@ -10,19 +10,21 @@
 <link rel="icon" href="logo.png">
 <style>html,body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Yudhi Property · Rumah Dijual Medan & Deli Serdang</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css">
+<link rel="stylesheet" href="style.css?v=2">
 
 
 </head>
 <body>
-<div class="wrap">
 <nav class="topnav">
+  <div class="navin">
   <a class="brand" href="#"><img src="logo.png" alt="" width="42" height="42"><span><b>Yudhi Property</b><small>Medan &amp; Deli Serdang</small></span></a>
   <a class="agent" href="https://wa.me/6289691757802" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" width="17" height="17" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-1.7-.1a12 12 0 0 1-4.3-2.6 10 10 0 0 1-2.2-3.3c-.2-.6-.3-1.3 0-1.8.2-.4.6-.9.9-1 .3-.2.7-.1.9.3l.7 1.4c.1.3.1.5-.1.7l-.4.5c-.1.2-.2.3 0 .6.3.6.8 1.2 1.3 1.6.5.4 1 .7 1.5.9.3.1.4 0 .6-.2l.5-.6c.2-.2.4-.3.7-.2l1.4.7c.3.2.4.5.3.9Z"/></svg>Chat WA <span>0896-9175-7802</span></a>
+  </div>
 </nav>
-
+<div class="band">
 <header>
   <div class="hero-top">
     <div>
@@ -42,31 +44,27 @@
     <span class="trust"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 3v4h4"/><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8Z"/><path d="M8.5 13h7M8.5 16.5h4.5"/></svg>Sertifikat diperiksa</span>
   </div>
 </header>
+</div>
 
+<div class="wrap">
 <section class="mapsec">
   <div class="seclabel">
     <h2>Peta lokasi rumah</h2>
-    <p>Geser · perbesar · ketuk label harga</p>
+    <p>Geser · perbesar untuk lihat nama jalan · ketuk label harga</p>
   </div>
   <div class="map" id="map">
-    <svg id="svg" role="group" aria-label="Peta batas kecamatan dan titik rumah dijual">
-      <g id="world"></g>
-      <g id="roadsW"></g>
-      <g id="labels"></g>
-      <g id="rlabels"></g>
-      <g id="pois"></g>
-      <g id="ticks"></g>
-      <g id="pins"></g>
-    </svg>
-    <div class="north" aria-hidden="true">
-      <svg viewBox="0 0 20 26" width="20" height="26"><path d="M10 1 L17 24 L10 19 L3 24 Z" fill="var(--ink)"/></svg>U
-    </div>
+    <div id="lmap" aria-label="Peta batas kecamatan dan titik rumah dijual"></div>
     <div class="ctrl">
       <button type="button" id="zin" aria-label="Perbesar">+</button>
       <button type="button" id="zout" aria-label="Perkecil">&minus;</button>
       <button type="button" id="zfit" aria-label="Tampilkan semua rumah"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4"/></svg></button>
     </div>
-    <div class="scale"><span id="scaleTxt">1 km</span><i id="scaleBar"></i></div>
+    <div class="legend" aria-hidden="true">
+      <span><i style="background:#ffad85"></i>Kota Medan</span>
+      <span><i style="background:#86d0b0"></i>Deli Serdang</span>
+      <span><i style="background:#bfa9ef"></i>Kota Binjai</span>
+      <span><i style="background:#94c2ef"></i>Langkat</span>
+    </div>
     <div class="hintbar" id="hint">Ketuk label harga untuk detail</div>
     <article class="pop" id="pop" hidden aria-live="polite"></article>
   </div>
@@ -114,10 +112,12 @@
     <a href="https://wa.me/6289691757802" target="_blank" rel="noopener">WA 0896-9175-7802</a>
     <span class="credit">Melayani Medan, Deli Serdang, dan sekitarnya</span>
   </div>
-  <p class="credit">Batas kecamatan: Kemendagri 2020. Jalan dan tempat: © OpenStreetMap contributors. Titik lokasi dari sharelok penjual. Alamat lengkap dan harga final diberikan saat chat.</p>
+  <p class="credit">Batas kecamatan: Kemendagri 2020. Peta dasar, nama jalan &amp; tempat: © OpenStreetMap contributors. Titik lokasi dari sharelok penjual. Alamat lengkap dan harga final diberikan saat chat.</p>
 </footer>
 </div>
 
-<script src="app.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>

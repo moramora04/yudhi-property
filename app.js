@@ -10,23 +10,6 @@ var HOUSES = [
     photos: [], captions: [] }
 ];
 
-var NS = "http://www.w3.org/2000/svg";
-var LAT0 = 3.62, COS = Math.cos(LAT0 * Math.PI / 180), S = 1000;
-function px(lon) { return (lon - 98.6) * S * COS; }
-function py(lat) { return (LAT0 - lat) * S; }
-
-var svg = document.getElementById("svg"), world = document.getElementById("world");
-var gLabels = document.getElementById("labels"), gTicks = document.getElementById("ticks"), gPins = document.getElementById("pins");
-var mapEl = document.getElementById("map"), pop = document.getElementById("pop");
-var view = { k: 1, tx: 0, ty: 0 }, W = 0, H = 0;
-var KEC = [], selected = null, shot = {};
-
-function node(tag, attrs, parent) {
-  var n = document.createElementNS(NS, tag);
-  for (var a in attrs) n.setAttribute(a, attrs[a]);
-  if (parent) parent.appendChild(n);
-  return n;
-}
 function el(tag, attrs, text) {
   var n = document.createElement(tag);
   for (var a in attrs) n.setAttribute(a, attrs[a]);
@@ -43,131 +26,113 @@ function inRing(x, y, r) {
   return c;
 }
 
+/* ===== Peta (Leaflet) ===== */
+var mapEl = document.getElementById("map"), pop = document.getElementById("pop");
+var KEC = [], selected = null, shot = {}, MK = {};
+var AREA = L.latLngBounds([3.21, 98.22], [3.96, 98.88]);
+var map = L.map("lmap", { zoomControl: false, minZoom: 10, maxZoom: 19, zoomSnap: 0.5, maxBounds: AREA.pad(0.08), maxBoundsViscosity: 1, worldCopyJump: false });
+map.attributionControl.setPrefix(false);
+var tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(map);
+L.control.scale({ imperial: false, position: "bottomleft" }).addTo(map);
+map.createPane("kecPane").style.zIndex = 350;
+map.createPane("kecLbl").style.zIndex = 450;
+map.getPane("kecPane").style.pointerEvents = "none";
+map.getPane("kecLbl").style.pointerEvents = "none";
+var gKec = L.layerGroup().addTo(map), gKecLbl = L.layerGroup().addTo(map);
+var PAL = {
+  "Kota Medan": ["#ffad85", "#ffc6a6", "#ff9a6b", "#ffd5bd", "#f9b892"],
+  "Deli Serdang": ["#86d0b0", "#a6dec5", "#6fc39f", "#bfe8d5"],
+  "Kota Binjai": ["#bfa9ef", "#d3c4f5", "#ab92e6"],
+  "Langkat": ["#94c2ef", "#b3d4f5", "#7cb2e8", "#c9e1f8"]
+};
+var cnt = {};
+function kecColor(kab) { var p = PAL[kab] || ["#d9dee3"]; cnt[kab] = (cnt[kab] || 0) + 1; return p[(cnt[kab] - 1) % p.length]; }
+
+function minZoomFit() {
+  var z = map.getBoundsZoom(AREA, false);
+  map.setMinZoom(Math.max(8, Math.floor(z * 2) / 2));
+}
+function styleByZoom() {
+  var z = map.getZoom();
+  var fo = z < 11.5 ? 0.82 : z < 12.5 ? 0.6 : z < 13.5 ? 0.38 : z < 14.5 ? 0.2 : 0.07;
+  var to = z < 11 ? 0.18 : z < 12 ? 0.4 : z < 13 ? 0.7 : 1;
+  tiles.setOpacity(to);
+  KEC.forEach(function (k) { if (k.poly) k.poly.setStyle({ fillOpacity: fo, opacity: z < 15 ? 1 : 0.6 }); });
+  drawKecLabels();
+}
+function drawKecLabels() {
+  gKecLbl.clearLayers();
+  var z = map.getZoom(); if (z > 14.5) return;
+  var view = map.getBounds().pad(0.1), scale = 256 * Math.pow(2, z) / 360;
+  var boxes = [];
+  KEC.slice().sort(function (a, b) { return b.wdeg - a.wdeg; }).forEach(function (k) {
+    if (!k.center || !view.contains(k.center)) return;
+    if (k.wdeg * scale < 64) return;
+    var p = map.latLngToContainerPoint(k.center), hw = k.kec.length * 3.9 + 6, bx = [p.x - hw, p.y - 9, p.x + hw, p.y + 9];
+    if (boxes.some(function (o) { return bx[0] < o[2] && bx[2] > o[0] && bx[1] < o[3] && bx[3] > o[1]; })) return;
+    boxes.push(bx);
+    L.marker(k.center, { pane: "kecLbl", interactive: false, keyboard: false,
+      icon: L.divIcon({ className: "klabel", html: "<span>" + k.kec.replace(/^Medan /, "Medan&nbsp;") + "</span>", iconSize: [0, 0] }) }).addTo(gKecLbl);
+  });
+}
 function buildWorld() {
-  world.textContent = "";
+  gKec.clearLayers(); cnt = {};
   var used = {};
   HOUSES.forEach(function (h) {
+    h.kec = null; h.kab = null;
     KEC.forEach(function (k, i) {
       if (k.rings.some(function (r) { return inRing(h.lon, h.lat, r); })) { h.kec = k.kec; h.kab = k.kab; used[i] = true; }
     });
   });
   KEC.forEach(function (k, i) {
-    var d = k.rings.map(function (r) {
-      return "M" + r.map(function (p) { return px(p[0]).toFixed(1) + " " + py(p[1]).toFixed(1); }).join("L") + "Z";
-    }).join("");
-    node("path", { d: d, "class": "kec" + (k.kab === "Kota Medan" ? " city" : "") + (used[i] ? " has" : "") }, world);
+    var ll = k.rings.map(function (r) { return r.map(function (p) { return [p[1], p[0]]; }); });
+    k.poly = L.polygon(ll, { pane: "kecPane", interactive: false, color: used[i] ? "#d4521a" : "#ffffff",
+      weight: used[i] ? 2.4 : 1.4, fillColor: kecColor(k.kab), fillOpacity: 0.8, smoothFactor: 1 }).addTo(gKec);
     var big = k.rings.reduce(function (a, b) { return b.length > a.length ? b : a; });
     var sx = 0, sy = 0, minx = Infinity, maxx = -Infinity;
     big.forEach(function (p) { sx += p[0]; sy += p[1]; minx = Math.min(minx, p[0]); maxx = Math.max(maxx, p[0]); });
-    k.cx = px(sx / big.length); k.cy = py(sy / big.length); k.w = (maxx - minx) * S * COS;
+    var c = [sy / big.length, sx / big.length];
+    k.center = inRing(c[1], c[0], big) ? L.latLng(c) : k.poly.getBounds().getCenter();
+    k.wdeg = maxx - minx;
   });
-  for (var lo = 98.45; lo <= 98.8001; lo += 0.05) node("line", { "class": "grat", x1: px(lo), x2: px(lo), y1: py(3.85), y2: py(3.4) }, world);
-  for (var la = 3.45; la <= 3.8501; la += 0.05) node("line", { "class": "grat", x1: px(98.4), x2: px(98.85), y1: py(la), y2: py(la) }, world);
   document.getElementById("nKec").textContent = Object.keys(used).length;
+  styleByZoom();
 }
 
-function sx(x) { return x * view.k + view.tx; }
-function sy(y) { return y * view.k + view.ty; }
-function apply() {
-  var tf = "translate(" + view.tx + " " + view.ty + ") scale(" + view.k + ")";
-  world.setAttribute("transform", tf);
-  document.getElementById("roadsW").setAttribute("transform", tf);
-  drawLabels(); drawRoadLabels(); drawPois(); drawTicks(); drawPins(); drawScale();
+function label(h) { return h.price ? (h.price >= 1000 ? "Rp " + (h.price / 1000).toLocaleString("id-ID") + " M" : "Rp " + h.price.toLocaleString("id-ID") + " jt") : "Dijual"; }
+function pinIcon(h) {
+  var txt = label(h), w = Math.round(txt.length * 7.4 + 24);
+  return L.divIcon({ className: "hpin" + (h.id === selected ? " on" : ""), iconSize: [w, 46], iconAnchor: [w / 2, 46],
+    html: '<span class="ptag">' + txt + '</span><i class="pstem"></i><i class="pdot"></i>' });
 }
-function drawLabels() {
-  gLabels.textContent = "";
-  KEC.forEach(function (k) {
-    if (!k.kec || k.w * view.k < 70) return;
-    var x = sx(k.cx), y = sy(k.cy);
-    if (x < -50 || x > W + 50 || y < -20 || y > H + 20) return;
-    node("text", { "class": "klabel", x: x, y: y }, gLabels).textContent = k.kec;
-  });
-}
-function drawTicks() {
-  gTicks.textContent = "";
-  for (var lo = 98.45; lo <= 98.8001; lo += 0.05) {
-    var x = sx(px(lo)); if (x < 60 || x > W - 70) continue;
-    node("text", { "class": "tick", x: x + 3, y: H - 40 }, gTicks).textContent = lo.toFixed(2) + "°BT";
+var cluster = L.markerClusterGroup({
+  showCoverageOnHover: false, spiderfyOnMaxZoom: true, maxClusterRadius: 70, zoomToBoundsOnClick: true,
+  iconCreateFunction: function (c) {
+    var n = c.getChildCount();
+    return L.divIcon({ className: "clu", iconSize: [56, 56], html: "<b>" + n + "</b><span>rumah</span>" });
   }
-  for (var la = 3.45; la <= 3.8501; la += 0.05) {
-    var y = sy(py(la)); if (y < 150 || y > H - 60) continue;
-    node("text", { "class": "tick", x: W - 62, y: y - 4 }, gTicks).textContent = la.toFixed(2) + "°LU";
-  }
-}
-function label(h) { return h.price ? (h.price >= 1000 ? "Rp " + (h.price / 1000).toLocaleString("id-ID") + " M" : "Rp " + h.price + " jt") : "Dijual"; }
+}).addTo(map);
 function drawPins() {
-  gPins.textContent = "";
-  var order = HOUSES.slice().sort(function (a, b) { return ((a.id === selected) - (b.id === selected)) || (b.lat - a.lat); });
-  order.forEach(function (h) {
-    var x = sx(px(h.lon)), y = sy(py(h.lat));
-    var g = node("g", { "class": "pin" + (h.id === selected ? " on" : ""), tabindex: "0", role: "button", "aria-label": h.name + ", " + label(h) }, gPins);
-    if (h.id === selected) node("circle", { "class": "halo", cx: x, cy: y, r: 16 }, g);
-    var txt = label(h), w = txt.length * 7.2 + 18;
-    node("rect", { "class": "tag", x: x - w / 2, y: y - 40, width: w, height: 26, rx: 13 }, g);
-    node("path", { "class": "stem", d: "M" + (x - 6) + " " + (y - 15) + "L" + x + " " + (y - 4) + "L" + (x + 6) + " " + (y - 15) + "Z" }, g);
-    node("circle", { "class": "stem", cx: x, cy: y, r: 5 }, g);
-    node("circle", { "class": "core", cx: x, cy: y, r: 2 }, g);
-    node("text", { "class": "tagtext", x: x, y: y - 23, "text-anchor": "middle" }, g).textContent = txt;
-    g.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
-    g.addEventListener("click", function () { select(h.id, false); });
-    g.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(h.id, false); } });
+  cluster.clearLayers(); MK = {};
+  HOUSES.forEach(function (h) {
+    var m = L.marker([h.lat, h.lon], { icon: pinIcon(h), title: h.name + ", " + label(h), riseOnHover: true });
+    m.on("click", function () { select(h.id, false); });
+    MK[h.id] = m; cluster.addLayer(m);
   });
 }
-function drawScale() {
-  var kmPerPx = 111.32 / (S * view.k);
-  var steps = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20], km = steps[0];
-  steps.forEach(function (s) { if (s / kmPerPx <= 120) km = s; });
-  document.getElementById("scaleBar").style.width = (km / kmPerPx) + "px";
-  document.getElementById("scaleTxt").textContent = km < 1 ? Math.round(km * 1000) + " m" : km + " km";
-}
+function refreshPins() { HOUSES.forEach(function (h) { if (MK[h.id]) { MK[h.id].setIcon(pinIcon(h)); MK[h.id].setZIndexOffset(h.id === selected ? 1000 : 0); } }); }
 
 function fitHouses() {
-  if (!W) return;
-  var xs = HOUSES.map(function (h) { return px(h.lon); }), ys = HOUSES.map(function (h) { return py(h.lat); });
-  var x0 = Math.min.apply(0, xs), x1 = Math.max.apply(0, xs), y0 = Math.min.apply(0, ys), y1 = Math.max.apply(0, ys);
-  var half = Math.max(x1 - x0, y1 - y0, 60) / 2 + 45;
-  var k = Math.max(0.15, Math.min(W, H) / (half * 2));
-  view.k = k; view.tx = W / 2 - (x0 + x1) / 2 * k; view.ty = H / 2 - (y0 + y1) / 2 * k + 15;
-  apply();
+  if (!HOUSES.length) return;
+  var b = L.latLngBounds(HOUSES.map(function (h) { return [h.lat, h.lon]; }));
+  map.fitBounds(b.pad(0.2), { padding: [60, 60], maxZoom: 13 });
 }
-function zoomAt(f, x, y) {
-  var nk = Math.max(0.15, Math.min(view.k * f, 80)); f = nk / view.k;
-  view.tx = x - (x - view.tx) * f; view.ty = y - (y - view.ty) * f; view.k = nk; apply();
-}
-function resize() {
-  var r = mapEl.getBoundingClientRect(), ow = W, oh = H;
-  W = r.width; H = r.height;
-  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
-  if (ow) { view.tx += (W - ow) / 2; view.ty += (H - oh) / 2; apply(); }
-}
-
-var pts = {};
-svg.addEventListener("pointerdown", function (e) {
-  svg.setPointerCapture(e.pointerId); pts[e.pointerId] = { x: e.clientX, y: e.clientY }; svg.classList.add("drag");
-});
-svg.addEventListener("pointermove", function (e) {
-  if (!pts[e.pointerId]) return;
-  var ids = Object.keys(pts), prev = pts[e.pointerId];
-  if (ids.length === 1) {
-    view.tx += e.clientX - prev.x; view.ty += e.clientY - prev.y;
-    pts[e.pointerId] = { x: e.clientX, y: e.clientY }; apply();
-  } else if (ids.length === 2) {
-    var o = pts[ids[0] == e.pointerId ? ids[1] : ids[0]];
-    var d0 = Math.hypot(prev.x - o.x, prev.y - o.y);
-    pts[e.pointerId] = { x: e.clientX, y: e.clientY };
-    var d1 = Math.hypot(e.clientX - o.x, e.clientY - o.y), r = mapEl.getBoundingClientRect();
-    if (d0 > 0) zoomAt(d1 / d0, (e.clientX + o.x) / 2 - r.left, (e.clientY + o.y) / 2 - r.top);
-  }
-});
-function up(e) { delete pts[e.pointerId]; if (!Object.keys(pts).length) svg.classList.remove("drag"); }
-svg.addEventListener("pointerup", up); svg.addEventListener("pointercancel", up);
-svg.addEventListener("wheel", function (e) {
-  e.preventDefault(); var r = mapEl.getBoundingClientRect();
-  zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
-}, { passive: false });
-document.getElementById("zin").onclick = function () { zoomAt(1.6, W / 2, H / 2); };
-document.getElementById("zout").onclick = function () { zoomAt(1 / 1.6, W / 2, H / 2); };
+document.getElementById("zin").onclick = function () { map.zoomIn(1); };
+document.getElementById("zout").onclick = function () { map.zoomOut(1); };
 document.getElementById("zfit").onclick = fitHouses;
+map.on("zoomend", styleByZoom);
+map.on("moveend", drawKecLabels);
+window.addEventListener("resize", function () { map.invalidateSize(); minZoomFit(); });
 
 function specs(h) {
   return [
@@ -275,72 +240,20 @@ function renderList() {
 function select(id, fly) {
   selected = id;
   if (id !== null && fly) {
-    var h = find(id), k = Math.max(view.k, 12);
-    view.k = k; view.tx = W / 2 - px(h.lon) * k; view.ty = H / 2 - py(h.lat) * k + 20;
-    if (W > 560) view.tx += 180;
+    var h = find(id), z = Math.max(map.getZoom(), 17);
+    var p = map.project([h.lat, h.lon], z);
+    if (mapEl.clientWidth > 560) p = p.subtract([180, 0]); else p = p.add([0, 120]);
+    map.flyTo(map.unproject(p, z), z, { duration: 0.8 });
   }
   document.getElementById("hint").hidden = id !== null;
-  apply(); renderPop(); renderList();
+  refreshPins(); renderPop(); renderList();
 }
 
 document.getElementById("nHouse").textContent = HOUSES.length;
-resize(); fitHouses(); renderList();
-window.addEventListener("resize", resize);
+minZoomFit(); drawPins(); fitHouses(); renderList();
 fetch("kec_medan.json").then(function (r) { return r.json(); }).then(function (data) {
-  KEC = data; buildWorld(); apply(); renderList();
+  KEC = data.filter(function (k) { return k.kec; }); buildWorld(); renderList();
 }).catch(function () {});
-fetch("roads.json").then(function (r) { return r.json(); }).then(function (d) { ROADS = d.r; POIS = d.p; buildRoads(); apply(); }).catch(function () {});
-var ROADS = [], POIS = [];
-function buildRoads() {
-  var g = document.getElementById("roadsW"); g.textContent = "";
-  var sorted = ROADS.slice().sort(function (a, b) { return b[1] - a[1]; });
-  ["case", "fill"].forEach(function (layer) {
-    sorted.forEach(function (r) {
-      var d = "M" + r[2].map(function (p) { return px(p[0]).toFixed(2) + " " + py(p[1]).toFixed(2); }).join("L");
-      var w = [6, 5, 4.2, 3][r[1]];
-      node("path", { d: d, "class": "rd " + (layer === "case" ? "case" : "c" + r[1]), "stroke-width": layer === "case" ? w + 2 : w }, g);
-    });
-  });
-}
-function drawRoadLabels() {
-  var g = document.getElementById("rlabels"); g.textContent = "";
-  if (!ROADS || !ROADS.length || view.k < 2.5) return;
-  var best = {};
-  ROADS.forEach(function (r) {
-    if (r[1] === 3 && view.k < 6) return;
-    var pts = r[2].map(function (p) { return [sx(px(p[0])), sy(py(p[1]))]; }).filter(function (q) { return q[0] > 10 && q[0] < W - 10 && q[1] > 10 && q[1] < H - 10; });
-    if (pts.length < 2) return;
-    var L = 0; for (var i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
-    if (!best[r[0]] || L > best[r[0]].L) best[r[0]] = { L: L, pts: pts };
-  });
-  var defs = node("defs", {}, g), n = 0;
-  Object.keys(best).forEach(function (name) {
-    var s = best[name], label = name.replace(/^Jalan /, "Jl. ").replace("Jenderal ", "");
-    if (s.L < label.length * 6.3 + 16) return;
-    var p = s.pts; if (p[p.length - 1][0] < p[0][0]) p = p.slice().reverse();
-    var id = "rl" + (n++);
-    node("path", { id: id, d: "M" + p.map(function (q) { return q[0].toFixed(1) + " " + q[1].toFixed(1); }).join("L") }, defs);
-    var t = node("text", { "class": "rlabel", dy: "-5" }, g);
-    var tp = node("textPath", { href: "#" + id, startOffset: "50%", "text-anchor": "middle" }, t);
-    tp.textContent = label;
-  });
-}
-var POI_STYLE = { mall: ["#7c3aed", "M"], hospital: ["#dc2626", "RS"], university: ["#2563eb", "U"], market: ["#ca8a04", "P"], station: ["#0f766e", "KA"], school: ["#64748b", "S"] };
-function drawPois() {
-  var g = document.getElementById("pois"); g.textContent = "";
-  if (!POIS || !POIS.length || view.k < 3) return;
-  POIS.forEach(function (p) {
-    if (p[1] === "school" && view.k < 9) return;
-    var x = sx(px(p[2])), y = sy(py(p[3]));
-    if (x < -10 || x > W + 10 || y < -10 || y > H + 10) return;
-    var st = POI_STYLE[p[1]] || ["#64748b", "•"];
-    var gg = node("g", { "class": "poi" }, g);
-    node("title", {}, gg).textContent = p[0];
-    node("circle", { cx: x, cy: y, r: 8, fill: st[0] }, gg);
-    node("text", { "class": "ic", x: x, y: y + 3 }, gg).textContent = st[1];
-    if (view.k >= 5) node("text", { "class": "nm", x: x + 11, y: y + 4 }, gg).textContent = p[0];
-  });
-}
 
 /* === Data dari Google Sheet (tab "Untuk Web", dipublikasikan sebagai CSV) === */
 var CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSBO5C65KcR67hat5AEp4Q4LI35ogogD6jHyo7DK-ijDbMNp7soNkFx52oC4clAkheaY1CCYp7Mj-o2/pub?gid=1&single=true&output=csv";
@@ -377,7 +290,7 @@ function loadSheet() {
     selected = null;
     document.getElementById("nHouse").textContent = HOUSES.length;
     if (KEC.length) buildWorld();
-    fitHouses(); renderPop(); renderList();
+    drawPins(); fitHouses(); renderPop(); renderList();
   }).catch(function () {});
 }
 loadSheet();
