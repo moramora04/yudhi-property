@@ -12,6 +12,19 @@ var pmap = L.map("pmap", { zoomControl: true, minZoom: 10, maxZoom: 19, maxBound
   .setView([3.595, 98.672], 12);
 pmap.attributionControl.setPrefix(false);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(pmap);
+/* HP: geser peta pakai dua jari, supaya satu jari tetap bisa scroll halaman */
+function twoFinger(m, box) {
+  if (!(L.Browser.touch && L.Browser.mobile)) return;
+  m.dragging.disable();
+  var h = document.createElement("div"); h.className = "twohint"; h.textContent = "Pakai dua jari untuk menggeser peta"; box.appendChild(h);
+  var t = null;
+  m.getContainer().addEventListener("touchmove", function (e) {
+    if (e.touches.length !== 1) { h.classList.remove("on"); return; }
+    h.classList.add("on"); clearTimeout(t); t = setTimeout(function () { h.classList.remove("on"); }, 1300);
+  }, { passive: true });
+}
+twoFinger(pmap, document.querySelector(".pick"));
+
 var pinIcon = L.divIcon({ className: "pickpin", iconSize: [30, 40], iconAnchor: [15, 40],
   html: '<svg viewBox="0 0 30 40"><path d="M15 39s13-13.4 13-23.5A13 13 0 0 0 2 15.5C2 25.6 15 39 15 39Z" fill="#d4521a" stroke="#fff" stroke-width="2.5"/><circle cx="15" cy="15.5" r="5" fill="#fff"/></svg>' });
 

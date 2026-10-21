@@ -34,6 +34,19 @@ var map = L.map("lmap", { zoomControl: false, minZoom: 10, maxZoom: 19, zoomSnap
 map.attributionControl.setPrefix(false);
 var tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(map);
 L.control.scale({ imperial: false, position: "bottomleft" }).addTo(map);
+/* HP: geser peta pakai dua jari, supaya satu jari tetap bisa scroll halaman */
+function twoFinger(m, box) {
+  if (!(L.Browser.touch && L.Browser.mobile)) return;
+  m.dragging.disable();
+  var h = document.createElement("div"); h.className = "twohint"; h.textContent = "Pakai dua jari untuk menggeser peta"; box.appendChild(h);
+  var t = null;
+  m.getContainer().addEventListener("touchmove", function (e) {
+    if (e.touches.length !== 1) { h.classList.remove("on"); return; }
+    h.classList.add("on"); clearTimeout(t); t = setTimeout(function () { h.classList.remove("on"); }, 1300);
+  }, { passive: true });
+}
+twoFinger(map, document.getElementById("map"));
+
 map.createPane("kecPane").style.zIndex = 350;
 map.createPane("kecLbl").style.zIndex = 450;
 map.getPane("kecPane").style.pointerEvents = "none";
@@ -130,6 +143,7 @@ function fitHouses() {
 document.getElementById("zin").onclick = function () { map.zoomIn(1); };
 document.getElementById("zout").onclick = function () { map.zoomOut(1); };
 document.getElementById("zfit").onclick = fitHouses;
+document.getElementById("sheetbg").onclick = function () { select(null); };
 map.on("zoomend", styleByZoom);
 map.on("moveend", drawKecLabels);
 window.addEventListener("resize", function () { map.invalidateSize(); minZoomFit(); });
@@ -155,6 +169,7 @@ function photoBlock(h, parent, big) {
 }
 function renderPop() {
   pop.textContent = "";
+  mapEl.classList.toggle("sheet-open", selected !== null);
   if (selected === null) { pop.hidden = true; return; }
   var h = find(selected), cur = shot[h.id] || 0;
   pop.hidden = false;
@@ -242,7 +257,7 @@ function select(id, fly) {
   if (id !== null && fly) {
     var h = find(id), z = Math.max(map.getZoom(), 17);
     var p = map.project([h.lat, h.lon], z);
-    if (mapEl.clientWidth > 560) p = p.subtract([180, 0]); else p = p.add([0, 120]);
+    if (mapEl.clientWidth > 560) p = p.subtract([180, 0]);
     map.flyTo(map.unproject(p, z), z, { duration: 0.8 });
   }
   document.getElementById("hint").hidden = id !== null;

@@ -122,7 +122,23 @@ h1 { font-size: clamp(30px, 6vw, 50px); line-height: 1.04; margin: 0; text-wrap:
 .pop { position: absolute; z-index: 4; left: 12px; top: 12px; bottom: 12px; width: min(368px, calc(100% - 24px));
   background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-md); box-shadow: var(--shadow-lg);
   overflow: auto; overscroll-behavior: contain; touch-action: pan-y; }
-@media (max-width: 560px) { .pop { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 80%; } }
+.sheetbg { display: none; }
+@media (max-width: 560px) {
+  .map.sheet-open { z-index: 1300; }
+  .map.sheet-open .sheetbg { display: block; position: fixed; inset: 0; z-index: 3; background: rgb(10 20 24 / .45); animation: fadein .2s; }
+  .pop { position: fixed; top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 86vh; max-height: 86dvh; border-radius: 18px 18px 0 0;
+    border: 0; padding-bottom: env(safe-area-inset-bottom, 0px); animation: sheetup .25s ease-out; }
+  .pop::before { content: ""; position: sticky; top: 0; display: block; height: 0; }
+  .pop .hero { aspect-ratio: 16 / 10; border-radius: 18px 18px 0 0; }
+  .pop .nophoto { border-radius: 18px 18px 0 0; aspect-ratio: 16 / 7; }
+  .pop .row .btn { flex: 1 1 100%; padding: 13px 16px; }
+  .pbody { padding: 16px 16px 22px; }
+}
+@keyframes sheetup { from { transform: translateY(40%); opacity: .4; } }
+@keyframes fadein { from { opacity: 0; } }
+.twohint { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; padding: 20px; text-align: center; pointer-events: none;
+  background: rgb(10 20 24 / .45); color: #fff; font: 600 15px var(--font-body); opacity: 0; transition: opacity .2s; }
+.twohint.on { opacity: 1; }
 .pop .x { position: absolute; right: 10px; top: 10px; z-index: 1; width: 34px; height: 34px; border-radius: 50%; border: 0;
   background: rgb(0 0 0 / .58); color: #fff; font: 600 18px/1 var(--font-body); cursor: pointer; backdrop-filter: blur(4px); }
 .pop .x:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
