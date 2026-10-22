@@ -325,7 +325,7 @@ function loadTitip() {
     TITIP_H = res.items.filter(function (x) { return num(x.lat) != null && num(x.lon) != null; }).map(function (x) {
       var photos = (x.photos || []).map(driveImg);
       return { name: x.name, area: x.area || "", lat: num(x.lat), lon: num(x.lon), maps: x.maps || "",
-        price: num(x.price), lt: num(x.lt), lb: num(x.lb), kt: num(x.kt), km: num(x.km), sert: x.sert || null,
+        price: (function (p) { return p != null && p >= 100000 ? Math.round(p / 1e5) / 10 : p; })(num(x.price)), lt: num(x.lt), lb: num(x.lb), kt: num(x.kt), km: num(x.km), sert: x.sert || null,
         photos: photos, captions: photos.map(function (_, j) { return "Foto " + (j + 1); }) };
     });
     if (TITIP_H.length) setHouses();

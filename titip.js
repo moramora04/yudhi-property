@@ -114,8 +114,18 @@ fetch("kec_medan.json").then(function (r) { return r.json(); }).then(function (d
 
 /* ---------- Harga terbaca ---------- */
 function num(v) { v = String(v || "").replace(/\s/g, "").replace(",", "."); var n = parseFloat(v); return isNaN(n) ? null : n; }
+/* Harga dalam juta. Kalau penjual menulis rupiah penuh (310000000 / 310.000.000), otomatis diubah ke juta. */
+function juta(v) {
+  var s = String(v || "").replace(/[\sRrPp]/g, "");
+  if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "");
+  var n = num(s); if (n == null) return null;
+  return n >= 100000 ? Math.round(n / 1e5) / 10 : n;
+}
+["harga", "net"].forEach(function (f) {
+  form[f].addEventListener("blur", function () { var n = juta(form[f].value); if (n != null && String(n) !== form[f].value.trim()) form[f].value = String(n); });
+});
 form.harga.addEventListener("input", function () {
-  var n = num(form.harga.value), t = document.getElementById("hargaTxt");
+  var n = juta(form.harga.value), t = document.getElementById("hargaTxt");
   t.textContent = n ? "= Rp " + (n >= 1000 ? (n / 1000).toLocaleString("id-ID") + " miliar" : n.toLocaleString("id-ID") + " juta") : "";
 });
 
@@ -179,7 +189,7 @@ form.addEventListener("submit", function (e) {
   if (val("website")) return;
   var d = {
     nama: val("nama"), wa: val("wa"), jenis: val("jenis"), alamat: val("alamat"), kecamatan: val("kecamatan"), kelurahan: val("kelurahan"),
-    harga: val("harga"), net: val("net"), kpr: val("kpr"), lt: val("lt"), lb: val("lb"), lantai: val("lantai"), kt: val("kt"), km: val("km"),
+    harga: juta(val("harga")) == null ? val("harga") : String(juta(val("harga"))), net: juta(val("net")) == null ? val("net") : String(juta(val("net"))), kpr: val("kpr"), lt: val("lt"), lb: val("lb"), lantai: val("lantai"), kt: val("kt"), km: val("km"),
     akses: val("akses"), listrik: val("listrik"), air: val("air"), sert: val("sert"), atasnama: val("atasnama"), pbb: val("pbb"), ket: val("ket"),
     lat: pin ? +pin.getLatLng().lat.toFixed(7) : "", lon: pin ? +pin.getLatLng().lng.toFixed(7) : "",
     akurasi: acc ? Math.round(acc.getRadius()) : "", sumber: pin ? (acc ? "GPS penjual" : "Ditandai di peta") : "Alamat saja"
