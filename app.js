@@ -160,12 +160,38 @@ function waIntl(n) { n = String(n).replace(/\D/g, ""); return n.charAt(0) === "0
 function waNice(n) { n = String(n).replace(/\D/g, ""); return n.replace(/^(\d{4})(\d{4})(\d+)$/, "$1-$2-$3"); }
 function waLink(h, n) { return "https://wa.me/" + waIntl(n || AGENT_WA) + "?text=" + encodeURIComponent("Halo " + AGENT + ", saya tertarik dengan " + h.name + " (" + h.area + ")."); }
 function priceText(h) { return h.price ? "Rp " + h.price.toLocaleString("id-ID") + " juta" : "Harga: hubungi " + AGENT; }
-function photoBlock(h, parent, big) {
-  var cur = shot[h.id] || 0;
-  if (!h.photos.length) { parent.appendChild(el("div", { "class": "nophoto" }, "Foto menyusul")); return; }
-  var im = el("img", { "class": big ? "hero" : "img", src: h.photos[cur], alt: (h.captions[cur] || "Foto") + ", " + h.name });
-  im.onerror = function () { var d = el("div", { "class": "nophoto" }, "Foto menyusul"); if (im.parentNode) im.parentNode.replaceChild(d, im); };
-  parent.appendChild(im);
+/* Galeri foto: tombol ‹ › , geser (swipe) di HP, dan penanda 1/6 */
+function gallery(h, parent, big, onChange) {
+  if (!h.photos.length) { parent.appendChild(el("div", { "class": "nophoto" }, "Foto menyusul")); return null; }
+  var n = h.photos.length, wrap = el("div", { "class": "gal" + (big ? " big" : "") });
+  var im = el("img", { "class": big ? "hero" : "img", alt: "", loading: big ? "eager" : "lazy" });
+  im.onerror = function () { im.classList.add("broken"); };
+  im.onload = function () { im.classList.remove("broken"); };
+  wrap.appendChild(im);
+  var cnt = null;
+  function show(i) {
+    i = ((i % n) + n) % n; shot[h.id] = i;
+    im.src = h.photos[i]; im.alt = (h.captions[i] || "Foto") + ", " + h.name;
+    if (cnt) cnt.textContent = (i + 1) + " / " + n;
+    if (onChange) onChange(i);
+  }
+  if (n > 1) {
+    var pv = el("button", { "class": "gnav prev", type: "button", "aria-label": "Foto sebelumnya" }, "‹");
+    var nx = el("button", { "class": "gnav next", type: "button", "aria-label": "Foto berikutnya" }, "›");
+    pv.onclick = function (e) { e.stopPropagation(); show((shot[h.id] || 0) - 1); };
+    nx.onclick = function (e) { e.stopPropagation(); show((shot[h.id] || 0) + 1); };
+    cnt = el("span", { "class": "gcount" });
+    wrap.appendChild(pv); wrap.appendChild(nx); wrap.appendChild(cnt);
+    var x0 = null;
+    wrap.addEventListener("touchstart", function (e) { x0 = e.touches[0].clientX; }, { passive: true });
+    wrap.addEventListener("touchend", function (e) {
+      if (x0 === null) return; var dx = e.changedTouches[0].clientX - x0; x0 = null;
+      if (Math.abs(dx) > 40) show((shot[h.id] || 0) + (dx < 0 ? 1 : -1));
+    });
+  }
+  parent.appendChild(wrap);
+  show(shot[h.id] || 0);
+  return show;
 }
 function renderPop() {
   pop.textContent = "";
@@ -176,13 +202,16 @@ function renderPop() {
   var x = el("button", { "class": "x", type: "button", "aria-label": "Tutup" }, "×");
   x.onclick = function () { select(null); };
   pop.appendChild(x);
-  photoBlock(h, pop, true);
+  var th = null;
+  var showPop = gallery(h, pop, true, function (i) {
+    if (th) Array.prototype.forEach.call(th.children, function (b, j) { b.setAttribute("aria-pressed", String(i === j)); });
+  });
   if (h.photos.length > 1) {
-    var th = el("div", { "class": "thumbs" });
+    th = el("div", { "class": "thumbs" });
     h.photos.forEach(function (src, i) {
       var b = el("button", { "class": "thumb", type: "button", "aria-pressed": String(i === cur), "aria-label": h.captions[i] });
-      b.appendChild(el("img", { src: src, alt: "" }));
-      b.onclick = function () { shot[h.id] = i; renderPop(); };
+      b.appendChild(el("img", { src: src, alt: "", loading: "lazy" }));
+      b.onclick = function () { showPop(i); };
       th.appendChild(b);
     });
     pop.appendChild(th);
@@ -219,14 +248,9 @@ function renderList() {
   HOUSES.forEach(function (h) {
     var c = el("article", { "class": "item" + (h.id === selected ? " on" : "") });
     var fig = el("div", { "class": "ifig" });
-    if (h.photos.length) {
-      var im = el("img", { "class": "img", src: h.photos[0], alt: "Foto " + h.name, loading: "lazy" });
-      im.onerror = function () { var d = el("div", { "class": "nophoto" }, "Foto menyusul"); if (im.parentNode) im.parentNode.replaceChild(d, im); };
-      fig.appendChild(im);
-    } else fig.appendChild(el("div", { "class": "nophoto" }, "Foto menyusul"));
+    gallery(h, fig, false);
     fig.appendChild(el("span", { "class": "perkflag" }, "✓ " + PERK));
     fig.appendChild(el("span", { "class": "pricetag" + (h.price ? "" : " ask") }, priceShort(h)));
-    if (h.photos.length > 1) fig.appendChild(el("span", { "class": "photocount" }, h.photos.length + " foto"));
     c.appendChild(fig);
     var b = el("div", { "class": "ibody" });
     b.appendChild(el("h3", {}, h.name));
